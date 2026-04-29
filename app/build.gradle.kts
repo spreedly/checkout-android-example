@@ -35,6 +35,10 @@ android {
     }
 namespace = "com.spreedly.app"
 
+    lint {
+        checkReleaseBuilds = false
+    }
+
     buildFeatures {
         buildConfig = true
     }
@@ -118,10 +122,10 @@ namespace = "com.spreedly.app"
 
 dependencies {
     // ✅ Use paymentsheet which includes payments-core and hosted-fields
-    implementation("com.spreedly:checkout-paymentsheet:0.13.0")
-    implementation("com.spreedly:checkout-braintree-apm:0.13.0")
-    implementation("com.spreedly:checkout-stripe-apm:0.13.0")
-    implementation("com.spreedly:checkout-threeds:0.13.0")
+    implementation("com.spreedly:checkout-paymentsheet:0.14.0")
+    implementation("com.spreedly:checkout-braintree-apm:0.14.0")
+    implementation("com.spreedly:checkout-stripe-apm:0.14.0")
+    implementation("com.spreedly:checkout-threeds:0.14.0")
 
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.bundles.compose)

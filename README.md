@@ -1,6 +1,6 @@
 # Spreedly Checkout — Android Example
 
-This sample app demonstrates the [Spreedly Android Checkout SDK](https://github.com/spreedly/checkout-android-sdk) at version **0.13.0** (tag `v0.13.0`).
+This sample app demonstrates the [Spreedly Android Checkout SDK](https://github.com/spreedly/checkout-android-sdk) at version **0.14.0** (tag `v0.14.0`).
 
 ## Setup
 
@@ -20,10 +20,10 @@ gpr.key=YOUR_GITHUB_TOKEN
 All SDK modules are resolved from GitHub Packages:
 
 ```kotlin
-implementation("com.spreedly:checkout-paymentsheet:0.13.0")
-implementation("com.spreedly:checkout-braintree-apm:0.13.0")
-implementation("com.spreedly:checkout-stripe-apm:0.13.0")
-implementation("com.spreedly:checkout-threeds:0.13.0")
+implementation("com.spreedly:checkout-paymentsheet:0.14.0")
+implementation("com.spreedly:checkout-braintree-apm:0.14.0")
+implementation("com.spreedly:checkout-stripe-apm:0.14.0")
+implementation("com.spreedly:checkout-threeds:0.14.0")
 ```
 
 ## SDK Documentation
