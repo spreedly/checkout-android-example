@@ -23,7 +23,9 @@ if (project.hasProperty("applyGoogleServices") ||
 }
 
 android {
-        flavorDimensions += "contentType"
+    compileSdk = 36
+
+    flavorDimensions += "contentType"
     productFlavors {
         create("development") {
             dimension = "contentType"
@@ -64,6 +66,8 @@ namespace = "com.spreedly.app"
         }
 
         applicationId = "com.spreedly.app"
+        minSdk = 26
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -105,6 +109,11 @@ namespace = "com.spreedly.app"
         }
     }
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -120,6 +129,12 @@ namespace = "com.spreedly.app"
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     // ✅ Use paymentsheet which includes payments-core and hosted-fields
     implementation("com.spreedly:checkout-paymentsheet:0.14.0")
@@ -128,9 +143,11 @@ dependencies {
     implementation("com.spreedly:checkout-threeds:0.14.0")
 
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.bundles.compose.ui.test)
 
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

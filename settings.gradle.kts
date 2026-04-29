@@ -29,6 +29,14 @@ dependencyResolutionManagement {
             }
         }
 
+        maven {
+            url = uri("https://mobile-sdks.forter.com/android")
+            credentials {
+                username = "forter-android-sdk"
+                password = "HvYumAfjVQYQFyoGsmNAefGdR84Esqig"
+            }
+        }
+
         google()
         mavenCentral()
     }
@@ -37,5 +45,3 @@ dependencyResolutionManagement {
 rootProject.name = "checkout-android-sdk"
 include(":app")
 include(":checkout-bom")
-
-// Forter: add the Forter Maven repository and credentials locally; do not commit secrets.
