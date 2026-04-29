@@ -32,8 +32,8 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://mobile-sdks.forter.com/android")
             credentials {
-                username = "forter-android-sdk"
-                password = "HvYumAfjVQYQFyoGsmNAefGdR84Esqig"
+                username = providers.gradleProperty("forter.usr").orNull ?: System.getenv("FORTER_USERNAME")
+                password = providers.gradleProperty("forter.key").orNull ?: System.getenv("FORTER_PASSWORD")
             }
         }
 
