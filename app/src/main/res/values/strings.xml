@@ -1,0 +1,194 @@
+<resources>
+    <string name="app_name">Spreedly Example</string>
+    <string name="payment_sdk">Payment SDK</string>
+    <string name="java_hosted_fields_demo">Java Hosted Fields Demo</string>
+    <string name="enter_your_payment_details">Enter your payment details</string>
+    <string name="success">Success</string>
+    <string name="payment_token_generated">Payment Token Generated</string>
+    <string name="token_placeholder">token_placeholder</string>
+    <string name="secure">Secure</string>
+    <string name="secure_tokenized_payments">Secure tokenized payments</string>
+    <string name="image">Image</string>
+    <string name="payment_sdk_demo">Payment SDK Demo</string>
+    <string name="test_your_payment_integration">Test your payment integration</string>
+    <string name="express_checkout">Express Checkout</string>
+    <string name="processing">Processing…</string>
+    <string name="circle">circle</string>
+    <string name="payment_token_generated_message">Payment Token Generated</string>
+    <string name="token">tok_1234567890abcdef</string>
+    <string name="payment_icon">Payment Icon</string>
+    <string name="java_payment_activity">Java Payment Activity</string>
+    <string name="secure_checkout_with_spreedly_sdk">Secure checkout with Spreedly SDK</string>
+    <string name="shopping_cart">Shopping Cart</string>
+    <string name="quick_and_secure_payment_processing">Quick and secure payment processing</string>
+    <string name="security">Security</string>
+    <string name="bank_level_security">Bank-Level Security</string>
+    <string name="pci_dss_compliant_payment_processing">PCI DSS compliant payment processing</string>
+    <string name="payment_token">Payment Token</string>
+    <string name="real_sdk_with_auto_closing_bottom_sheet">• Real SDK with Auto-Closing Bottom Sheet</string>
+    <string name="pure_java_implementation_with_xml">• Pure Java Implementation with XML</string>
+    <string name="real_token_display_on_success">• Real Token Display on Success</string>
+    <string name="automatic_error_amp_cancel_handling"><![CDATA[• Automatic Error & Cancel Handling]]></string>
+    
+    <!-- Main Menu Screen -->
+    <string name="main_menu_title">Payment SDK Examples</string>
+    <string name="main_menu_section_header">PAYMENT SDK EXAMPLES</string>
+    
+    <!-- Menu Items -->
+    <string name="menu_item_payment_bottom_sheet_title">Payment Bottom Sheet</string>
+    <string name="menu_item_payment_bottom_sheet_description">Quick payment with bottom sheet modal (Card Number, Expiry Date, CVC)</string>
+    
+    <string name="menu_item_reusable_bottom_sheet_title">Reusable Payment Bottom Sheet</string>
+    <string name="menu_item_reusable_bottom_sheet_description">Multiple payments with fresh initialization each time (reusable nonce)</string>
+    
+    <string name="menu_item_basic_form_title">Basic Form With Headless Components</string>
+    <string name="menu_item_basic_form_description">Custom form build at application level using headless components</string>
+    
+    <string name="menu_item_bank_account_title">ACH Bank Account</string>
+    <string name="menu_item_bank_account_description">Tokenize bank accounts via ACH with routing number, account number, and account type</string>
+
+    <string name="menu_item_headless_bank_account_title">Headless ACH Bank Account</string>
+    <string name="menu_item_headless_bank_account_description">Custom form using headless SPL fields for secure ACH bank account tokenization</string>
+
+    <string name="menu_item_additional_fields_title">Checkout with additional fields</string>
+    <string name="menu_item_additional_fields_description">Default fields plus address fields</string>
+    
+    <string name="menu_item_custom_theme_title">Custom Theme Form</string>
+    <string name="menu_item_custom_theme_description">Beautiful form with custom theme and modern design</string>
+    
+    <string name="menu_item_flexible_expiry_title">Flexible Expiry Fields Demo</string>
+    <string name="menu_item_flexible_expiry_description">Switch between separate month/year fields (YYYY) or combined expiry date (MM/YY)</string>
+    
+    <string name="menu_item_traditional_xml_title">Traditional XML Layout with Real SDK</string>
+    <string name="menu_item_traditional_xml_description">Classic Android XML layout with real Spreedly SDK integration and bottom sheet</string>
+    
+    <string name="menu_item_java_hosted_fields_title">Java Hosted Fields Demo</string>
+    <string name="menu_item_java_hosted_fields_description">Java Activity with hosted fields form using ComposeView and real token generation</string>
+    
+    <string name="menu_item_custom_text_fields_title">Custom Text Fields with SPL Integration</string>
+    <string name="menu_item_custom_text_fields_description">SPL fields for secure card data, custom text fields with validation for personal info</string>
+    
+    <string name="menu_item_recaching_showcase_title">Recaching Showcase</string>
+    <string name="menu_item_recaching_showcase_description">Customize presentation mode and theme for CVV recaching UI</string>
+    
+    <string name="menu_item_threeds_challenge_title">3DS Challenge Example</string>
+    <string name="menu_item_threeds_challenge_description">Complete 3DS authentication flow with Forter integration and device info collection</string>
+
+    <string name="menu_item_threeds_custom_tabs_challenge_title">3DS Challenge with Gateway Specific Example</string>
+    <string name="menu_item_threeds_custom_tabs_challenge_description">Complete 3DS authentication flow with Custom Tab integration and device info collection</string>
+    
+    <string name="menu_item_design_system_title">Design System Showcase</string>
+    <string name="menu_item_design_system_description">Comprehensive showcase of colors, typography, spacing, and components</string>
+    
+    <string name="menu_item_offsite_payment_title">Offsite Payment Flow</string>
+    <string name="menu_item_offsite_payment_description">Create offsite payment method (PayPal, Sprel) and complete checkout via browser</string>
+    
+    <string name="menu_item_ebanx_payment_title">EBANX Payment Flow</string>
+    <string name="menu_item_ebanx_payment_description">EBANX payment methods (Pix, Boleto, OXXO, NuPay) with offsite checkout</string>
+
+    <string name="menu_item_stripe_apm_payment_title">Stripe APM Payment</string>
+    <string name="menu_item_stripe_apm_payment_description">Stripe alternative payment methods (iDEAL, Bancontact, SEPA) with PaymentSheet</string>
+
+    <string name="menu_item_braintree_payment_title">Braintree Payment</string>
+    <string name="menu_item_braintree_payment_description">Braintree PayPal and Venmo payments with native SDK checkout flow</string>
+
+    <string name="menu_item_java_offsite_title">Java Offsite Payment</string>
+    <string name="menu_item_java_offsite_description">Java implementation of offsite payment flow (PayPal, Sprel) with Chrome Custom Tabs</string>
+    
+    <!-- About Section -->
+    <string name="about_section_header">ABOUT</string>
+    <string name="about_title">Payment SDK for Android</string>
+    <string name="about_description">This example demonstrates different ways to integrate the Payment SDK:</string>
+    
+    <!-- Feature Bullet Points -->
+    <string name="feature_complete_checkout">Complete checkout components</string>
+    <string name="feature_headless_ui">Headless UI components</string>
+    <string name="feature_custom_forms">Custom form implementations</string>
+    <string name="feature_secure_fields">Secure field handling</string>
+    <string name="feature_traditional_xml">Traditional XML layouts with real SDK</string>
+    
+    <!-- Bank Account Screen -->
+    <string name="bank_account_screen_title">ACH Bank Account</string>
+    <string name="bank_account_screen_subtitle">Tokenize bank account details via ACH</string>
+    <string name="bank_account_add_button">Add Bank Account</string>
+    <string name="bank_account_initializing">Initializing…</string>
+    <string name="bank_account_processing">Processing…</string>
+    <string name="bank_account_security_note">Secure ACH tokenized payments</string>
+    <string name="bank_account_sdk_init_failed">SDK initialization failed</string>
+    <string name="bank_account_saved">Bank account saved for future use!</string>
+    <string name="bank_account_tokenized">Bank account tokenized successfully!</string>
+    <string name="bank_account_save_failed">Bank account created but failed to save</string>
+    <string name="bank_account_error">Error creating bank account</string>
+    <string name="bank_account_canceled">Payment canceled</string>
+
+    <!-- Headless Bank Account Screen -->
+    <string name="headless_bank_account_title">Headless ACH Bank Account</string>
+    <string name="headless_bank_account_subtitle">SPL fields for secure data, custom fields with custom button</string>
+    <string name="headless_bank_account_holder_name_label">Account Holder Name</string>
+    <string name="headless_bank_account_holder_name_required">Name is required</string>
+    <string name="headless_bank_account_holder_name_min_length">Name must be at least 2 characters</string>
+    <string name="headless_bank_account_section_secure">Bank Account Information (Secure)</string>
+    <string name="headless_bank_account_section_personal">Account Details (Custom Handled)</string>
+    <string name="headless_bank_account_account_type">Account Type</string>
+    <string name="headless_bank_account_holder_type">Account Holder Type</string>
+    <string name="headless_bank_account_checking">Checking</string>
+    <string name="headless_bank_account_savings">Savings</string>
+    <string name="headless_bank_account_personal">Personal</string>
+    <string name="headless_bank_account_business">Business</string>
+    <string name="headless_bank_account_submit">Tokenize Bank Account</string>
+    <string name="headless_bank_account_initializing">Initializing…</string>
+    <string name="headless_bank_account_processing">Processing…</string>
+    <string name="headless_bank_account_fill_fields">Complete All Fields</string>
+    <string name="headless_bank_account_security_note">SPL secure fields + custom button for ACH tokenization</string>
+    <string name="headless_bank_account_validation_failed">Validation failed. Please check your information.</string>
+    <string name="headless_bank_account_error">Payment processing error</string>
+    <string name="headless_bank_account_sdk_init_failed">SDK initialization failed</string>
+    <string name="headless_bank_account_saved">Bank account saved for future use!</string>
+    <string name="headless_bank_account_tokenized">Bank account tokenized successfully!</string>
+    <string name="headless_bank_account_save_failed">Bank account created but failed to save</string>
+    <string name="headless_bank_account_payment_failed">Error creating bank account</string>
+    <string name="headless_bank_account_payment_canceled">Payment canceled</string>
+    <string name="headless_bank_account_timeout">Payment processing timeout</string>
+
+    <!-- Bank Account Config Panel -->
+    <string name="config_field_configuration">Field Configuration</string>
+    <string name="config_name_display_mode">Name Display Mode</string>
+    <string name="config_preset_default">Default</string>
+    <string name="config_preset_minimal">Minimal</string>
+    <string name="config_preset_full">Full</string>
+    <string name="config_name_full">Full Name</string>
+    <string name="config_name_separate">First + Last</string>
+    <string name="config_show_bank_name">Show Bank Name</string>
+    <string name="config_show_account_type">Show Account Type</string>
+    <string name="config_show_account_holder_type">Show Account Holder Type</string>
+    <string name="config_ui_customization">UI Customization</string>
+    <string name="config_primary_color">Primary Color</string>
+    <string name="config_field_background">Field Background</string>
+    <string name="config_border_radius">Border Radius</string>
+
+    <string name="headless_bank_account_first_name_label">First Name</string>
+    <string name="headless_bank_account_last_name_label">Last Name</string>
+    <string name="headless_bank_account_bank_name_label">Bank Name</string>
+    <string name="headless_bank_account_config_title">ACH Bank Account Playground</string>
+    <string name="headless_bank_account_config_subtitle">Configure fields and styling, then open the form</string>
+    <string name="headless_bank_account_open_form">Open Bank Account Form</string>
+
+    <!-- Recaching Showcase Screen -->
+    <string name="recaching_showcase_title">Recaching Showcase</string>
+    <string name="recaching_showcase_subtitle">Customize and test CVV recaching with saved cards</string>
+    <string name="recaching_customization">Recaching Customization</string>
+    <string name="presentation_mode">Presentation Mode</string>
+    <string name="bottom_sheet">Bottom Sheet</string>
+    <string name="dialog">Dialog</string>
+    <string name="custom_theme">Custom Theme</string>
+    <string name="theme_preset">Theme Preset</string>
+    <string name="theme_default">Default</string>
+    <string name="theme_blue">Blue</string>
+    <string name="theme_green">Green</string>
+    <string name="theme_purple">Purple</string>
+    <string name="theme_dark">Dark</string>
+    <string name="saved_cards_section">Saved Payment Methods</string>
+    <string name="click_card_to_recache">Click a card to recache with your custom settings</string>
+    <string name="or_create_new">Or Create New Payment Method</string>
+    <string name="create_payment_method">Create Payment Method</string>
+</resources>

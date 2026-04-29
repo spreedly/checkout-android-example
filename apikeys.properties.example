@@ -1,0 +1,14 @@
+# Spreedly Configuration (Example/Dummy values for CI)
+# Copy this file to apikeys.properties and add your real credentials for local development
+
+token=dummy_token_for_ci
+nonce=dummy_nonce_for_ci  
+timestamp=dummy_timestamp_for_ci
+certificateToken=dummy_certificate_token_for_ci
+signature=dummy_signature_for_ci
+environmentKey=dummy_environment_key_for_ci
+forterSiteId=sdfasfds
+stripePublishableKey=dummy_stripe_publishable_key_for_ci
+
+# Datadog Configuration
+datadog.client.token=safsasfds

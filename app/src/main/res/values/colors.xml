@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Error/Success colors for light theme -->
+    <color name="error_container">#FFEBEE</color>
+    <color name="error_text">#C62828</color>
+    <color name="success_container">#E8F5E9</color>
+    <color name="success_text">#2E7D32</color>
+    
+    <!-- Card colors for light theme -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_selected_background">#EDE7F6</color>
+    
+    <!-- Stage indicator colors -->
+    <color name="stage_inactive_color">#9E9E9E</color>
+</resources>

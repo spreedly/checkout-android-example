@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Error/Success colors for dark theme -->
+    <color name="error_container">#3D2222</color>
+    <color name="error_text">#F48FB1</color>
+    <color name="success_container">#1B3D1B</color>
+    <color name="success_text">#81C784</color>
+    
+    <!-- Card colors for dark theme -->
+    <color name="card_background">#2D2D2D</color>
+    <color name="card_selected_background">#3D3D5C</color>
+    
+    <!-- Stage indicator colors for dark theme -->
+    <color name="stage_inactive_color">#888888</color>
+</resources>

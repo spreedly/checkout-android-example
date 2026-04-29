@@ -1,0 +1,309 @@
+# ============================================================================
+# Spreedly Android SDK - Dependency Version Catalog
+# ============================================================================
+# This file manages all dependency versions for the multi-module Android SDK.
+# Dependencies are organized by category for easier maintenance.
+# ============================================================================
+
+[versions]
+# ============================================================================
+# Build Tools & Core
+# ============================================================================
+agp = "8.13.2"                          # Android Gradle Plugin
+kotlin = "2.3.10"                        # Kotlin language version (2.3.20 blocked by CodeQL; github.com/github/codeql/issues/21484)
+ksp = "2.3.6"                            # Kotlin Symbol Processing (KSP2 line)
+androidTools = "31.13.0"                 # Android build tools
+
+# ============================================================================
+# AndroidX Core Libraries
+# ============================================================================
+coreKtx = "1.17.0"                      # AndroidX Core KTX extensions
+appcompat = "1.7.1"                     # AndroidX AppCompat
+activity = "1.11.0"                     # AndroidX Activity
+browser = "1.9.0"                       # AndroidX Browser (Chrome Custom Tabs + Auth Tab)
+cardview = "1.0.0"                      # AndroidX CardView
+constraintlayout = "2.2.1"              # AndroidX ConstraintLayout
+lifecycle = "2.9.4"                     # AndroidX Lifecycle (runtime, viewmodel, compose)
+navigation = "2.9.5"                    # AndroidX Navigation Compose
+
+# ============================================================================
+# Jetpack Compose
+# ============================================================================
+composeBom = "2025.10.01"               # Compose Bill of Materials
+composeLintChecks = "1.4.2"             # Slack Compose Lint Rules
+
+# ============================================================================
+# Dependency Injection
+# ============================================================================
+hilt = "2.57.2"                           # Dagger Hilt for DI
+hiltNavigationCompose = "1.3.0"         # Hilt integration for Compose Navigation
+
+# ============================================================================
+# Networking & Serialization
+# ============================================================================
+ktor = "2.3.12"                         # Ktor HTTP client (2.x for DEX compatibility with minSdk 26)
+kotlinxSerialization = "1.7.3"          # Kotlin serialization
+kotlinxCoroutines = "1.8.1"             # Kotlin coroutines (downgraded to match Compose BOM 2025.10.01 requirements)
+
+# ============================================================================
+# Database & Storage
+# ============================================================================
+room = "2.8.3"                          # Room database (library and gradle plugin)
+
+# ============================================================================
+# Testing Libraries
+# ============================================================================
+junit = "4.13.2"                        # JUnit 4
+androidxJunit = "1.1.5"                 # AndroidX JUnit extensions (compatible with Compose BOM 2025.10.01)
+androidxTestCore = "1.6.1"              # AndroidX Test Core (compatible with androidx.test.ext:junit:1.1.5)
+espressoCore = "3.5.0"                  # Espresso UI testing (compatible with Compose BOM 2025.10.01)
+mockk = "1.14.6"                        # MockK mocking framework
+robolectric = "4.15.1"                  # Robolectric for unit testing with Android
+
+# ============================================================================
+# Code Quality & Documentation
+# ============================================================================
+spotless = "8.0.0"                      # Code formatting
+kover = "0.9.3"                         # Code coverage
+dokka = "2.1.0"                         # KDoc documentation generator
+moduleGraph = "2.9.0"                   # Module dependency graph
+versions = "0.53.0"                     # Gradle Versions Plugin for dependency updates
+
+# ============================================================================
+# External Services & SDKs
+# ============================================================================
+material = "1.13.0"                     # Material Design Components
+protobuf = "0.9.5"                      # Protobuf plugin
+firebaseAppDistribution = "5.1.1"       # Firebase App Distribution
+googleServices = "4.4.4"                # Google Services plugin
+datadog = "3.2.0"                       # Datadog monitoring SDK
+spreedlySdk = "0.13.0"                  # Spreedly SDK version - ACH bank account support
+forter3ds = "2.0.4"
+stripe = "22.8.1"                        # Stripe Android SDK for APM (PaymentSheet) - Verify latest at https://github.com/stripe/stripe-android/releases
+braintree = "5.18.0"                    # Braintree Android SDK v5 for PayPal/Venmo - Verify latest at https://github.com/braintree/braintree_android/releases
+
+# ============================================================================
+# Library Definitions
+# ============================================================================
+
+[libraries]
+# ----------------------------------------------------------------------------
+# AndroidX Core
+# ----------------------------------------------------------------------------
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+
+# ----------------------------------------------------------------------------
+# AndroidX Lifecycle
+# ----------------------------------------------------------------------------
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-testing = { group = "androidx.lifecycle", name = "lifecycle-runtime-testing", version.ref = "lifecycle" }
+
+# ----------------------------------------------------------------------------
+# AndroidX Navigation
+# ----------------------------------------------------------------------------
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+
+# ----------------------------------------------------------------------------
+# Room Database
+# ----------------------------------------------------------------------------
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# ----------------------------------------------------------------------------
+# Jetpack Compose
+# ----------------------------------------------------------------------------
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# ----------------------------------------------------------------------------
+# Material Design
+# ----------------------------------------------------------------------------
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+# ----------------------------------------------------------------------------
+# Dependency Injection (Hilt)
+# ----------------------------------------------------------------------------
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+hilt-core = { group = "com.google.dagger", name = "hilt-core", version.ref = "hilt" }
+hilt-android-testing = { group = "com.google.dagger", name = "hilt-android-testing", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# ----------------------------------------------------------------------------
+# Networking (Ktor)
+# ----------------------------------------------------------------------------
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
+ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-client-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktor" }
+ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
+
+# ----------------------------------------------------------------------------
+# Serialization & Coroutines
+# ----------------------------------------------------------------------------
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+
+# ----------------------------------------------------------------------------
+# Testing
+# ----------------------------------------------------------------------------
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+mockk-android = { group = "io.mockk", name = "mockk-android", version.ref = "mockk" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+
+# ----------------------------------------------------------------------------
+# Code Quality & Build Tools
+# ----------------------------------------------------------------------------
+compose-lint-checks = { group = "com.slack.lint.compose", name = "compose-lint-checks", version.ref = "composeLintChecks" }
+
+# ----------------------------------------------------------------------------
+# Gradle Plugins (for build-logic convention plugins)
+# ----------------------------------------------------------------------------
+android-gradle-plugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+android-tools-common = { group = "com.android.tools", name = "common", version.ref = "androidTools" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradle-plugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+ksp-gradle-plugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
+room-gradle-plugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
+spotless-gradle-plugin = { group = "com.diffplug.spotless", name = "spotless-plugin-gradle", version.ref = "spotless" }
+
+# ----------------------------------------------------------------------------
+# External Services
+# ----------------------------------------------------------------------------
+datadog-core = { group = "com.datadoghq", name = "dd-sdk-android-core", version.ref = "datadog" }
+datadog-logs = { group = "com.datadoghq", name = "dd-sdk-android-logs", version.ref = "datadog" }
+
+# ----------------------------------------------------------------------------
+# 3DS Authentication (Optional)
+# ----------------------------------------------------------------------------
+# Note: Forter SDK requires adding their Maven repository to settings.gradle.kts or project build.gradle:
+# maven {
+#     url = uri("https://mobile-sdks.forter.com/android")
+#     credentials {
+#         username = "forter-android-sdk"
+#         password = "HvYumAfjVQYQFyoGsmNAefGdR84Esqig"
+#     }
+# }
+forter-sdk = { group = "com.forter.mobile", name = "forter3ds", version.ref = "forter3ds" }
+stripe-android = { group = "com.stripe", name = "stripe-android", version.ref = "stripe" }
+
+# ----------------------------------------------------------------------------
+# Braintree SDK (Optional - for Braintree PayPal/Venmo payments)
+# ----------------------------------------------------------------------------
+braintree-paypal = { group = "com.braintreepayments.api", name = "paypal", version.ref = "braintree" }
+braintree-venmo = { group = "com.braintreepayments.api", name = "venmo", version.ref = "braintree" }
+braintree-data-collector = { group = "com.braintreepayments.api", name = "data-collector", version.ref = "braintree" }
+
+# ============================================================================
+# Plugin Definitions
+# ============================================================================
+
+[plugins]
+# ----------------------------------------------------------------------------
+# Android & Kotlin Plugins
+# ----------------------------------------------------------------------------
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+# ----------------------------------------------------------------------------
+# Dependency Injection
+# ----------------------------------------------------------------------------
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+
+# ----------------------------------------------------------------------------
+# Database
+# ----------------------------------------------------------------------------
+room = { id = "androidx.room", version.ref = "room" }
+
+# ----------------------------------------------------------------------------
+# Code Quality & Documentation
+# ----------------------------------------------------------------------------
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version = "0.17.0" }
+module-graph = { id = "com.jraska.module.graph.assertion", version.ref = "moduleGraph" }
+versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
+
+# ----------------------------------------------------------------------------
+# External Services
+# ----------------------------------------------------------------------------
+protobuf = { id = "com.google.protobuf", version.ref = "protobuf" }
+firebase-app-distribution = { id = "com.google.firebase.appdistribution", version.ref = "firebaseAppDistribution" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+
+# ----------------------------------------------------------------------------
+# Spreedly Custom Convention Plugins (defined in build-logic module)
+# ----------------------------------------------------------------------------
+spreedly-android-application = { id = "spreedly.android.application", version = "unspecified" }
+spreedly-android-application-compose = { id = "spreedly.android.application.compose", version = "unspecified" }
+spreedly-android-application-flavors = { id = "spreedly.android.application.flavors", version = "unspecified" }
+spreedly-android-feature = { id = "spreedly.android.feature", version = "unspecified" }
+spreedly-android-library = { id = "spreedly.android.library", version = "unspecified" }
+spreedly-android-library-compose = { id = "spreedly.android.library.compose", version = "unspecified" }
+spreedly-android-library-publish = { id = "spreedly.android.library.publish", version = "unspecified" }
+spreedly-android-room = { id = "spreedly.android.room", version = "unspecified" }
+spreedly-android-test = { id = "spreedly.android.test", version = "unspecified" }
+spreedly-hilt = { id = "spreedly.hilt", version = "unspecified" }
+spreedly-jvm-library = { id = "spreedly.jvm.library", version = "unspecified" }
+spreedly-spotless = { id = "spreedly.spotless", version = "unspecified" }
+
+# ============================================================================
+# Dependency Bundles
+# ============================================================================
+# Bundles group commonly used dependencies together for convenience
+
+[bundles]
+# Core Compose UI dependencies
+compose = [
+    "androidx-compose-ui",
+    "androidx-compose-ui-graphics",
+    "androidx-compose-ui-tooling-preview",
+    "androidx-compose-material3",
+    "androidx-compose-material-icons-extended"
+]
+
+# Compose UI testing dependencies
+compose-ui-test = [
+    "androidx-compose-ui-test-junit4",
+    "androidx-compose-ui-test-manifest"
+]
+
+# Ktor networking stack
+ktor = [
+    "ktor-client-core",
+    "ktor-client-cio",
+    "ktor-client-logging",
+    "ktor-client-content-negotiation",
+    "ktor-client-auth",
+    "ktor-serialization-json"
+]

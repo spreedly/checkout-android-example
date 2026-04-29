@@ -1,0 +1,11 @@
+{
+  "modules": [
+    { "gradle": "payments-core", "artifact": "checkout-payments-core" },
+    { "gradle": "hostedfields",  "artifact": "checkout-hostedfields" },
+    { "gradle": "paymentsheet",  "artifact": "checkout-paymentsheet" },
+    { "gradle": "threeds",       "artifact": "checkout-threeds" },
+    { "gradle": "stripe",        "artifact": "checkout-stripe-apm" },
+    { "gradle": "braintree",     "artifact": "checkout-braintree-apm" },
+    { "gradle": "checkout-bom",  "artifact": "checkout-bom", "type": "pom" }
+  ]
+}
