@@ -24,7 +24,7 @@ tasks.withType<Jar>().configureEach {
 }
 
 apiValidation {
-    ignoredProjects += listOf("app", "checkout-bom")
+    ignoredProjects += listOf("app")
 }
 
 

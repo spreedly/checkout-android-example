@@ -5,6 +5,26 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-30
+
+### Breaking Changes
+
+- None. This major version bump signals API stability, not API change. All 0.14.x APIs remain unchanged.
+
+### Added
+
+- **First public release** -- Spreedly Android Checkout SDK reaches 1.0 GA. All public APIs are now covered by semantic versioning guarantees.
+
+## [0.14.1] - 2026-04-30
+
+### Fixed
+
+- **Apache-2.0 LICENSE in published artifacts** -- each AAR now embeds `META-INF/LICENSE` inside `classes.jar`, ensuring compliance with Apache 2.0 Section 4 distribution requirements.
+
+### Changed
+
+- **Release pipeline reliability** -- GPG-signed tags on the maven distribution repository, CI runner stability guards (JVM heap limits, Gradle daemon control, job timeouts), PR-based dist-repo synchronization, and DAST security scanning integration.
+
 ## [0.14.0] - 2026-04-29
 
 ### Added

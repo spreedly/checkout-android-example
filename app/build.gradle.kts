@@ -35,10 +35,15 @@ android {
             dimension = "contentType"
         }
     }
-namespace = "com.spreedly.app"
+    namespace = "com.spreedly.app"
 
     lint {
         checkReleaseBuilds = false
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
@@ -64,10 +69,10 @@ namespace = "com.spreedly.app"
                 throw GradleException("Neither apikeys.properties nor apikeys.properties.example found!")
             }
         }
-
-        applicationId = "com.spreedly.app"
         minSdk = 26
         targetSdk = 35
+
+        applicationId = "com.spreedly.app"
         versionCode = 1
         versionName = "1.0"
 
@@ -109,11 +114,6 @@ namespace = "com.spreedly.app"
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -137,15 +137,16 @@ kotlin {
 
 dependencies {
     // ✅ Use paymentsheet which includes payments-core and hosted-fields
-    implementation("com.spreedly:checkout-paymentsheet:0.14.0")
-    implementation("com.spreedly:checkout-braintree-apm:0.14.0")
-    implementation("com.spreedly:checkout-stripe-apm:0.14.0")
-    implementation("com.spreedly:checkout-threeds:0.14.0")
+    implementation("com.spreedly:checkout-paymentsheet:1.0.0")
+    implementation("com.spreedly:checkout-braintree-apm:1.0.0")
+    implementation("com.spreedly:checkout-stripe-apm:1.0.0")
+    implementation("com.spreedly:checkout-threeds:1.0.0")
 
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
     implementation(libs.bundles.compose.ui.test)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

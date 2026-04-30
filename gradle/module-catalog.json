@@ -1,11 +1,11 @@
 {
   "modules": [
-    { "gradle": "payments-core", "artifact": "checkout-payments-core" },
-    { "gradle": "hostedfields",  "artifact": "checkout-hostedfields" },
-    { "gradle": "paymentsheet",  "artifact": "checkout-paymentsheet" },
-    { "gradle": "threeds",       "artifact": "checkout-threeds" },
-    { "gradle": "stripe",        "artifact": "checkout-stripe-apm" },
-    { "gradle": "braintree",     "artifact": "checkout-braintree-apm" },
-    { "gradle": "checkout-bom",  "artifact": "checkout-bom", "type": "pom" }
+    { "gradle": "payments-core", "artifact": "checkout-payments-core", "description": "Core payment processing" },
+    { "gradle": "hostedfields",  "artifact": "checkout-hostedfields",  "description": "Secure payment field components" },
+    { "gradle": "paymentsheet",  "artifact": "checkout-paymentsheet",  "description": "Pre-built payment sheet UI", "recommended": true },
+    { "gradle": "threeds",       "artifact": "checkout-threeds",       "description": "3D Secure authentication" },
+    { "gradle": "stripe",        "artifact": "checkout-stripe-apm",    "description": "Stripe alternative payment methods" },
+    { "gradle": "braintree",     "artifact": "checkout-braintree-apm", "description": "Braintree alternative payment methods" },
+    { "gradle": "checkout-bom",  "artifact": "checkout-bom", "type": "pom", "description": "Bill of Materials" }
   ]
 }
