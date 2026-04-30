@@ -44,4 +44,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "checkout-android-sdk"
 include(":app")
-include(":checkout-bom")
