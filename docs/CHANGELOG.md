@@ -5,6 +5,12 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-05-08
+
+### Added
+
+- **SDK version attribution on API requests** -- all requests now include platform and version identifiers, enabling Spreedly support to diagnose integration issues faster.
+
 ## [1.0.0] - 2026-04-30
 
 ### Breaking Changes
@@ -541,6 +547,6 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 - **Compose BOM**: 2025.10.01
 
 For detailed integration guides and API documentation, visit
-our [documentation](https://docs.spreedly.com/guides/mobile/android/).
+our [documentation](https://developer.spreedly.com/docs/mobile-applications).
 
 For support or questions, please contact our support team or create an issue in the repository. 

@@ -175,5 +175,5 @@ SDK version.
 ## Contact
 
 - **Spreedly Support**: [spreedly.com/support](https://spreedly.com/support/)
-- **Spreedly Documentation**: [docs.spreedly.com](https://docs.spreedly.com/)
+- **Spreedly Documentation**: [developer.spreedly.com](https://developer.spreedly.com/)
 - **GitHub Issues**: [checkout-android-sdk/issues](https://github.com/spreedly/checkout-android-sdk/issues)

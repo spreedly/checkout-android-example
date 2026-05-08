@@ -268,7 +268,7 @@ Authorization: Basic base64(environment_key:access_secret)
 > with Venmo).
 
 See
-the [Spreedly Braintree APM docs](https://docs.spreedly.com/payment-gateways/braintree#alternative-payment-methods)
+the [Spreedly Braintree APM docs](https://developer.spreedly.com/docs/braintree-gateway-guide)
 for full details.
 
 ---

@@ -1146,9 +1146,9 @@ For a complete, working example of Global 3DS, refer to the sample app:
 
 ## Additional Resources
 
-- [Spreedly 3DS Documentation](https://docs.spreedly.com/reference/api/v1/3ds/)
+- [Spreedly 3DS Documentation](https://developer.spreedly.com/docs/spreedly-3ds2-global-guide)
 - [Gateway-Specific 3DS Integration](3ds-gateway-specific.md)
 - [Getting Started](getting-started.md)
 - [Error Handling](error-handling.md)
 - [Forter Portal](https://portal.forter.com) — Monitor 3DS events
-- [Forter 3DS Execution Guide](https://docs.forter.com/docs/3ds-execution)
+- [Forter 3DS Execution Guide](https://docs.forter.com/3ds-execution)
