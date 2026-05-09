@@ -1662,5 +1662,5 @@ For Stripe APM examples and integration details, see the
 
 ## Additional Resources
 
-- [Spreedly Offsite Payments Documentation](https://docs.spreedly.com/reference/api/v1/)
+- [Spreedly Offsite Payments Documentation](https://developer.spreedly.com/reference)
 - [Chrome Custom Tabs Documentation](https://developer.chrome.com/docs/android/custom-tabs/)
