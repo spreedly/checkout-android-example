@@ -1,5 +1,2 @@
 # --no-git mode fingerprints (used by CI secret-scanning workflow)
 # Paths are relative to repository root.
-
-# Commented Forter Maven example in version catalog (documentation snippet, not a live credential)
-gradle/libs.versions.toml:generic-api-key:208
