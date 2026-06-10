@@ -7,7 +7,7 @@ This sample app demonstrates the [Spreedly Android Checkout SDK](https://github.
 ## Setup
 
 1. Clone this repository
-2. Add your GitHub Packages credentials to `~/.gradle/gradle.properties`:
+2. Add your GitHub Packages credentials to `~/.gradle/gradle.properties`. Even though [checkout-android-maven](https://github.com/spreedly/checkout-android-maven) is public, GitHub Packages still requires authentication to download Maven artifacts. Create a PAT with `read:packages` scope and add:
 
 ```properties
 gpr.usr=YOUR_GITHUB_USERNAME
