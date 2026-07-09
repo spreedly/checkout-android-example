@@ -19,7 +19,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.spreedly.app.R
 import com.spreedly.example.viewmodel.ConfigurationChangeAwareViewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.spreedly.example.qa.ExpressDisplayConfigBar
 import com.spreedly.paymentsheet.SpreedlyBottomSheet
+import com.spreedly.sdk.ui.CardNumberFormat
+import com.spreedly.sdk.ui.PaymentSheetDisplayConfig
 
 import kotlinx.coroutines.launch
 
@@ -115,7 +121,30 @@ class TraditionalActivity : AppCompatActivity() {
             val isInitializing by viewModel.isInitializing.collectAsState()
 
             if (!isInitializing) {
-                SpreedlyBottomSheet(sdk = viewModel.sdk)
+                var sheetEnableAutofill by remember { mutableStateOf(true) }
+                var sheetUseMaskedFormat by remember { mutableStateOf(false) }
+                val displayConfig =
+                    PaymentSheetDisplayConfig(
+                        enableAutofill = sheetEnableAutofill,
+                        cardNumberFormat =
+                            if (sheetUseMaskedFormat) {
+                                CardNumberFormat.MASKED
+                            } else {
+                                CardNumberFormat.PRETTY
+                            },
+                    )
+                androidx.compose.foundation.layout.Column {
+                    ExpressDisplayConfigBar(
+                        enableAutofill = sheetEnableAutofill,
+                        onEnableAutofillChange = { sheetEnableAutofill = it },
+                        useMaskedFormat = sheetUseMaskedFormat,
+                        onUseMaskedFormatChange = { sheetUseMaskedFormat = it },
+                    )
+                    SpreedlyBottomSheet(
+                        sdk = viewModel.sdk,
+                        displayConfig = displayConfig,
+                    )
+                }
             }
         }
     }

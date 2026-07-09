@@ -26,6 +26,8 @@ SPL fields enforce security automatically:
 - Card number fields block copy, cut, and text selection (paste is allowed)
 - CVV fields block all clipboard operations and text selection
 
+**`SPLTextField` callbacks:** `onChange` receives **AES-encrypted** ciphertext for `FormFieldType.CARD`, `FormFieldType.CVV`, and `FormFieldType.ACCOUNT_NUMBER` only (`FormFieldType.shouldEncrypt()`); all other field types receive **raw** processed text in `onChange`. Do **not** log encrypted strings or treat them as display digits. Use **`onFieldStateChange(HostedFieldState)?`** for iframe-style observability: digit **counts** (`numberLength` / `cvvLength`), `cardScheme`, `isValid`, focus/blur via `HostedFieldEventType`, without parsing ciphertext. Use `onValidationChange` / `hasValidationError` / submit results for gating checkout. Kotlin/Java samples: [Migration from legacy](migration/from-legacy.md#hostedfieldstate--kotlin-samples-compose).
+
 For initial SDK setup, see [getting-started.md](getting-started.md).
 
 ## Setup
@@ -109,31 +111,40 @@ For styling guidance, see [theme-and-styling.md](theme-and-styling.md).
 
 ## SPL Text Fields
 
-Use `SPLTextField` (from the `:hostedfields` module) with `FormFieldType` (from `com.spreedly.sdk.models`) for all sensitive card data. Each field requires a `formFieldType` and an `onChange` callback.
+Use `SPLTextField` (from the `:hostedfields` module) with `FormFieldType` (from `com.spreedly.sdk.models`) for all sensitive card data. Each field requires a `formFieldType` and an `onChange` callback. **CARD** and **CVV** fields also require the same `sdk: Spreedly` instance used for `setNumberFormat` / `toggleMask` (display follows `sdk.hostedCardDisplayState`).
 
 ### Single Expiry Field
 
 ```kotlin
-SPLTextField(
-    formFieldType = FormFieldType.EXPIRY_DATE(),
-    label = "Expiry Date (MM/YY)",
-    value = expiryValue,
-    onChange = { expiryValue = it },
-)
+@Composable
+fun CardFieldsSection(sdk: Spreedly) {
+    var expiryValue by remember { mutableStateOf("") }
+    var cardValue by remember { mutableStateOf("") }
+    var cvvValue by remember { mutableStateOf("") }
 
-SPLTextField(
-    formFieldType = FormFieldType.CARD(true),
-    label = "Card Number",
-    value = cardValue,
-    onChange = { cardValue = it },
-)
+    SPLTextField(
+        formFieldType = FormFieldType.EXPIRY_DATE(),
+        label = "Expiry Date (MM/YY)",
+        value = expiryValue,
+        onChange = { expiryValue = it },
+    )
 
-SPLTextField(
-    formFieldType = FormFieldType.CVV(true),
-    label = "CVV",
-    value = cvvValue,
-    onChange = { cvvValue = it },
-)
+    SPLTextField(
+        formFieldType = FormFieldType.CARD(true),
+        sdk = sdk,
+        label = "Card Number",
+        value = cardValue,
+        onChange = { cardValue = it },
+    )
+
+    SPLTextField(
+        formFieldType = FormFieldType.CVV(true),
+        sdk = sdk,
+        label = "CVV",
+        value = cvvValue,
+        onChange = { cvvValue = it },
+    )
+}
 ```
 
 ### Separate Month and Year Fields

@@ -127,7 +127,7 @@ private fun handleApiError(error: PaymentResult.Failed) {
 
 ## Common Error Scenarios
 
-### 1. Account Inactive Error (402 Payment Required)
+### 1. Account Inactive Error (422 Unprocessable Entity)
 
 **What it means:** You're trying to use real card numbers with a test gateway.
 

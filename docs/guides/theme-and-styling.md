@@ -295,7 +295,7 @@ The theme ships with light and dark color schemes. Always reference colors, typo
 |------|-------|
 | Background | Gray900 |
 | Surface | Gray800 |
-| Primary | Blue500 |
+| Primary | Blue600 |
 | On Background | Gray100 |
 
 Never hardcode colors. Use theme accessors:

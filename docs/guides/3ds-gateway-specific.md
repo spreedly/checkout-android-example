@@ -145,7 +145,7 @@ The SDK uses Auth Tab for all 3DS browser flows on Chrome 137+. Auth Tab provide
 
 After device fingerprinting completes, the SDK emits `gatewaySpecific3DSTriggerCompletionFlow`. At that point the merchant must call their backend `/complete` endpoint. Two approaches exist for handling the response:
 
-**Explicit finalization (recommended)** — Pass the `/complete` response to `GatewaySpecific3DSIntegration.finalizeTransaction()`. The SDK processes it immediately with no polling overhead. Matches iOS SDK behavior.
+**Explicit finalization (recommended)** — Pass the `/complete` response to `GatewaySpecific3DSIntegration.finalizeTransaction()`. The SDK processes it immediately without additional status polling.
 
 **Automatic polling (default)** — Skip `finalizeTransaction()`. The SDK polls `checkTransactionStatus()` every 2 seconds for up to 2 minutes. Also acts as a fallback if explicit finalization fails.
 
@@ -162,11 +162,11 @@ flowchart TD
     SDK -->|challenge| CH["Auth Tab / CCT<br/>(3DS challenge page)"]
     SDK -->|redirect| RD["Auth Tab / CCT<br/>(external redirect)"]
 
-    FP -->|"polling / postMessage"| Trigger[onTriggerCompletion]
+    FP -->|"polling (~10s)"| Trigger[onTriggerCompletion]
     Trigger --> Complete["Merchant calls /complete"]
 
     Complete --> Explicit["Explicit: finalizeTransaction()"]
-    Complete --> Automatic["Automatic: SDK polls"]
+    Complete --> Automatic["Automatic: SDK polls (up to 2 min)"]
 
     Explicit --> CompletionCheck{Result?}
     Automatic --> CompletionCheck
@@ -174,8 +174,8 @@ flowchart TD
     CompletionCheck -->|"succeeded / failed"| FinalResult[ThreeDSChallengeResult]
     CompletionCheck -->|"pending + challenge"| CH
 
-    CH -->|"polling (2s, max 15min)"| ChallengeResult["succeeded / failed"]
-    RD -->|"polling (2s, max 15min)"| RedirectResult["succeeded / failed"]
+    CH -->|"polling (2s, max 10min)"| ChallengeResult["succeeded / failed"]
+    RD -->|"polling (2s, max 10min)"| RedirectResult["succeeded / failed"]
 
     ChallengeResult --> FinalResult
     RedirectResult --> FinalResult
@@ -228,11 +228,21 @@ Headers:
 
 When `required_action` is `"device_fingerprint"`, the SDK:
 
-1. Opens the `device_fingerprint_form_embed_url` in an Auth Tab (or CCT fallback)
-2. Polls for completion (10 × 1-second intervals) or listens for a Worldpay `postMessage`
-3. Emits `gatewaySpecific3DSTriggerCompletionFlow` once fingerprinting completes
+1. Opens the `device_fingerprint_form_embed_url` in an Auth Tab (or Chrome Custom Tab fallback)
+2. Polls the transaction status about once per second for up to **10 seconds**
+3. Emits `gatewaySpecific3DSTriggerCompletionFlow` when fingerprinting is complete
 
-The merchant must then call the backend `/complete` endpoint. The response determines the next step:
+Fingerprint completion is detected through **status polling**, not through a custom WebView or JavaScript bridge in your app.
+
+### Braintree
+
+When the purchase status has `gateway_type` **braintree** and `required_action` **device_fingerprint**, the SDK opens the **challenge** step directly instead of the fingerprint tab. Your purchase response must include a `challenge_url` or `challenge_form_embed_url`. If neither is present, the flow ends with **Challenge URL missing**.
+
+### Worldpay and other gateways
+
+For gateways such as Worldpay, the fingerprint tab runs as described above. Allow up to **10 seconds** for the SDK to detect completion and emit `gatewaySpecific3DSTriggerCompletionFlow` before you call your backend `/complete` endpoint.
+
+After fingerprinting, call your backend `/complete` endpoint. The response determines the next step:
 
 - **`succeeded` or `failed`** — SDK emits a final result via `threeDSChallengeResultFlow`
 - **`pending` with `required_action = "challenge"`** — SDK launches the challenge
@@ -243,9 +253,15 @@ The merchant must then call the backend `/complete` endpoint. The response deter
 
 Challenges are displayed in an Auth Tab (or CCT fallback). The SDK launches the tab automatically — no manual view embedding is needed.
 
-Once launched, the SDK emits `gatewaySpecific3DSChallengeReadyFlow` and begins polling for a terminal state (every 2 seconds, up to 15 minutes).
+Once launched, the SDK emits `gatewaySpecific3DSChallengeReadyFlow` and polls every **2 seconds** until the transaction reaches a terminal state or **10 minutes** elapse.
 
 When `required_action` is `"challenge"` from the initial purchase (e.g., $30.05 test amount), the SDK skips device fingerprinting and launches the challenge directly.
+
+If challenge or redirect polling runs for **10 minutes** without a terminal status, the SDK reports a challenge timeout failure.
+
+### App backgrounding
+
+If the user backgrounds your app during fingerprinting, challenge, or the post-fingerprint wait, status polling generally continues. When they return, the SDK presents results through the same flows.
 
 ---
 
@@ -313,7 +329,19 @@ The SDK declares the `REORDER_TASKS` permission in its manifest (auto-merged). T
 
 **Symptom:** Error after 2 minutes — "Timeout waiting for /complete.json API call"
 
-Verify your backend processes the `/complete` call and that `gatewaySpecific3DSTriggerCompletionFlow` is subscribed.
+Verify your backend processes the `/complete` call, that `gatewaySpecific3DSTriggerCompletionFlow` is subscribed, and that you call `finalizeTransaction()` with the `/complete` response when possible.
+
+### Challenge URL Missing (Braintree)
+
+**Symptom:** Flow fails immediately with **Challenge URL missing** after a Braintree purchase returns `device_fingerprint`.
+
+Ensure the purchase status includes `challenge_url` or `challenge_form_embed_url`. The SDK opens the challenge step directly for Braintree and does not run the fingerprint tab when those URLs are required for the next step.
+
+### Challenge Polling Timeout
+
+**Symptom:** Error after **10 minutes** of challenge or redirect polling.
+
+The user may need to complete authentication in the browser tab, or the transaction may be stuck on the gateway. Check transaction status on your backend and retry or cancel the payment as your product requires.
 
 ### Complete API Returns 404
 

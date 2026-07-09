@@ -68,6 +68,7 @@ import com.spreedly.app.R
 import com.spreedly.example.ui.components.RetokenizeCard
 import com.spreedly.example.screens.basiccheckout.SimpleInputField
 import com.spreedly.example.ui.components.SavedPaymentMethodsList
+import com.spreedly.example.ui.theme.SampleThemePreset
 import com.spreedly.example.ui.theme.Spacing
 import com.spreedly.example.viewmodel.recachingShowcaseViewModel
 import com.spreedly.hostedfields.ui.SPLTextField
@@ -315,20 +316,20 @@ fun RecachingShowcaseScreen(
                         ) {
                             ThemePresetChip(
                                 text = stringResource(R.string.theme_default),
-                                isSelected = selectedThemePreset == ThemePreset.DEFAULT,
-                                onClick = { viewModel.updateThemePreset(ThemePreset.DEFAULT) },
+                                isSelected = selectedThemePreset == SampleThemePreset.DEFAULT,
+                                onClick = { viewModel.updateThemePreset(SampleThemePreset.DEFAULT) },
                                 color = Color(0xFF757575),
                             )
                             ThemePresetChip(
                                 text = stringResource(R.string.theme_blue),
-                                isSelected = selectedThemePreset == ThemePreset.BLUE,
-                                onClick = { viewModel.updateThemePreset(ThemePreset.BLUE) },
+                                isSelected = selectedThemePreset == SampleThemePreset.BLUE,
+                                onClick = { viewModel.updateThemePreset(SampleThemePreset.BLUE) },
                                 color = Color(0xFF1976D2),
                             )
                             ThemePresetChip(
                                 text = stringResource(R.string.theme_green),
-                                isSelected = selectedThemePreset == ThemePreset.GREEN,
-                                onClick = { viewModel.updateThemePreset(ThemePreset.GREEN) },
+                                isSelected = selectedThemePreset == SampleThemePreset.GREEN,
+                                onClick = { viewModel.updateThemePreset(SampleThemePreset.GREEN) },
                                 color = Color(0xFF388E3C),
                             )
                         }
@@ -339,14 +340,14 @@ fun RecachingShowcaseScreen(
                         ) {
                             ThemePresetChip(
                                 text = stringResource(R.string.theme_purple),
-                                isSelected = selectedThemePreset == ThemePreset.PURPLE,
-                                onClick = { viewModel.updateThemePreset(ThemePreset.PURPLE) },
+                                isSelected = selectedThemePreset == SampleThemePreset.PURPLE,
+                                onClick = { viewModel.updateThemePreset(SampleThemePreset.PURPLE) },
                                 color = Color(0xFF7B1FA2),
                             )
                             ThemePresetChip(
                                 text = stringResource(R.string.theme_dark),
-                                isSelected = selectedThemePreset == ThemePreset.DARK,
-                                onClick = { viewModel.updateThemePreset(ThemePreset.DARK) },
+                                isSelected = selectedThemePreset == SampleThemePreset.DARK,
+                                onClick = { viewModel.updateThemePreset(SampleThemePreset.DARK) },
                                 color = Color(0xFF212121),
                             )
                             // Spacer to balance the row
@@ -546,6 +547,7 @@ fun RecachingShowcaseScreen(
                         config = CustomFieldsConfig.Default,
                         value = sdk.paymentState.value.cardNumber.value,
                         onChange = { sdk.callbacks.onCardNumberChange(it, true) },
+                        sdk = sdk,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -574,6 +576,7 @@ fun RecachingShowcaseScreen(
                             onChange = { sdk.callbacks.onSecurityCodeChange(it, true) },
                             modifier = Modifier.weight(1f),
                             imeAction = ImeAction.Next,
+                            sdk = sdk,
                         )
                     }
 

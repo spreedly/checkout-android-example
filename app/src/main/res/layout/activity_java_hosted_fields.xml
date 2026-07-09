@@ -74,6 +74,13 @@
                 android:padding="24dp"
                 android:gravity="center_horizontal">
 
+                <!-- Merchant mask toggle (outside hosted fields — iframe pattern) -->
+                <androidx.compose.ui.platform.ComposeView
+                    android:id="@+id/merchant_mask_toggle_compose_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp" />
+
                 <!-- Hosted Fields Compose View -->
                 <androidx.compose.ui.platform.ComposeView
                     android:id="@+id/hosted_fields_compose_view"

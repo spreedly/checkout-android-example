@@ -10,6 +10,8 @@ import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
+import com.spreedly.example.ui.theme.SampleThemePreset
+import com.spreedly.example.ui.theme.ThemeConfigurationController
 import com.spreedly.sdk.Spreedly
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +47,9 @@ class BottomSheetPaymentViewModel(private val context: Context) : ViewModel() {
     private val sdkSessionManager = SdkSessionManager(AuthService())
     private val paymentMethodRepository = PaymentMethodRepository(context)
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
+    val themeConfiguration = ThemeConfigurationController()
+    val useCustomTheme = themeConfiguration.useCustomTheme
+    val selectedThemePreset = themeConfiguration.selectedPreset
 
     // Initialize SDK on ViewModel creation
     init {
@@ -217,6 +222,25 @@ class BottomSheetPaymentViewModel(private val context: Context) : ViewModel() {
                 snackbarHostState.showSnackbar("Error resetting SDK")
             }
         }
+    }
+
+    fun setUseCustomTheme(enabled: Boolean) {
+        themeConfiguration.setUseCustomTheme(enabled)
+    }
+
+    fun setThemePreset(preset: SampleThemePreset) {
+        themeConfiguration.setPreset(preset)
+    }
+
+    fun resetThemeConfiguration() {
+        themeConfiguration.setUseCustomTheme(false)
+    }
+
+    fun resolvePaymentSheetConfig(isDarkMode: Boolean) =
+        themeConfiguration.resolvePaymentSheetConfig(isDarkMode)
+
+    fun applyThemeToSdk(isDarkMode: Boolean) {
+        themeConfiguration.applyGlobalTheme(sdk, isDarkMode)
     }
 
     private companion object {

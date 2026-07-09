@@ -225,6 +225,8 @@ data class StripeAPMPurchaseTransactionBody(
     val callbackUrl: String = DEFAULT_CALLBACK_URL,
     @SerialName("payment_method")
     val paymentMethod: StripeAPMPaymentMethod,
+    @SerialName("gateway_specific_fields")
+    val gatewaySpecificFields: StripeGatewaySpecificFields? = null,
 )
 
 @Serializable
@@ -233,6 +235,18 @@ data class StripeAPMPaymentMethod(
     val paymentMethodType: String = "stripe_apm",
     @SerialName("apm_types")
     val apmTypes: List<String>,
+)
+
+@Serializable
+data class StripeGatewaySpecificFields(
+    @SerialName("stripe_payment_intents")
+    val stripePaymentIntents: StripeRadarFields,
+)
+
+@Serializable
+data class StripeRadarFields(
+    @SerialName("radar_session_id")
+    val radarSessionId: String,
 )
 
 // ============================================================================

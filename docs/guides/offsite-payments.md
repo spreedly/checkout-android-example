@@ -321,8 +321,7 @@ private fun observePaymentResults() {
                     val state = result.state // e.g., "gateway_processing_failed"
                     handleFailure(message, state)
                 }
-                PaymentResult.Canceled -> {
-                    handleCancellation()
+                is PaymentResult.Canceled -> {                    handleCancellation()
                 }
                 PaymentResult.Initial -> {
                     // Initial state - no action needed
@@ -1468,7 +1467,7 @@ viewModelScope.launch {
         when (result) {
             is PaymentResult.Completed -> { /* token, state */ }
             is PaymentResult.Failed -> { /* errorType, message, state */ }
-            PaymentResult.Canceled -> { /* user canceled */ }
+            is PaymentResult.Canceled -> { /* user canceled */ }
             PaymentResult.Initial -> { /* initial state */ }
         }
     }

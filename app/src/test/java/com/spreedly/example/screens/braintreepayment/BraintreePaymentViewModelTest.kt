@@ -422,7 +422,7 @@ class BraintreePaymentViewModelTest {
         startPaymentResultObserver(viewModel)
 
         // When
-        paymentResultFlow.value = PaymentResult.Canceled
+        paymentResultFlow.value = PaymentResult.Canceled()
         advanceUntilIdle()
 
         // Then - default payment type is PayPal
@@ -468,7 +468,7 @@ class BraintreePaymentViewModelTest {
         startPaymentResultObserver(viewModel)
 
         // When
-        paymentResultFlow.value = PaymentResult.Canceled
+        paymentResultFlow.value = PaymentResult.Canceled()
         advanceUntilIdle()
 
         // Then
@@ -540,7 +540,7 @@ class BraintreePaymentViewModelTest {
         startPaymentResultObserver(viewModel)
 
         // When - no currentTransactionToken set
-        paymentResultFlow.value = PaymentResult.Canceled
+        paymentResultFlow.value = PaymentResult.Canceled()
         advanceUntilIdle()
 
         // Then - confirm not called, but canceled message still shown

@@ -95,9 +95,10 @@ constructor(
         request: T,
         errorContext: String = "Purchase",
     ): SpreedlyPurchaseResponse = try {
+        val requestBody = purchaseJson.encodeToString(request)
         val response = client.post(url) {
             contentType(ContentType.Application.Json)
-            setBody(purchaseJson.encodeToString(request))
+            setBody(requestBody)
         }
         val responseBody = response.bodyAsText()
         if (!response.status.isSuccess()) {
@@ -230,6 +231,7 @@ constructor(
         apmTypes: List<String>,
         redirectUrl: String,
         callbackUrl: String = DEFAULT_CALLBACK_URL,
+        radarSessionId: String? = null,
     ): SpreedlyPurchaseResponse = executePurchaseRequest(
         url = "$BASE_URL$PURCHASE_PATH",
         request = StripeAPMPurchaseTransactionRequest(
@@ -240,6 +242,11 @@ constructor(
                 redirectUrl = redirectUrl,
                 callbackUrl = callbackUrl,
                 paymentMethod = StripeAPMPaymentMethod(apmTypes = apmTypes),
+                gatewaySpecificFields = radarSessionId?.let {
+                    StripeGatewaySpecificFields(
+                        stripePaymentIntents = StripeRadarFields(radarSessionId = it),
+                    )
+                },
             ),
         ),
         errorContext = "Stripe APM purchase",

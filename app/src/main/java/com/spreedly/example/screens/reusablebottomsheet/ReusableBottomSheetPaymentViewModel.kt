@@ -10,6 +10,8 @@ import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
+import com.spreedly.example.ui.theme.SampleThemePreset
+import com.spreedly.example.ui.theme.ThemeConfigurationController
 import com.spreedly.sdk.Spreedly
 import com.spreedly.sdk.models.BinMetadata
 import com.spreedly.sdk.models.Metadata
@@ -17,6 +19,7 @@ import com.spreedly.sdk.models.PaymentMethodDetails
 import com.spreedly.sdk.models.PaymentMethodResponse
 import com.spreedly.sdk.models.Transaction
 import com.spreedly.sdk.ui.PaymentResult
+import com.spreedly.sdk.ui.PaymentSheetConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +63,9 @@ class ReusableBottomSheetPaymentViewModel(private val context: Context) : ViewMo
     private val paymentMethodRepository = PaymentMethodRepository(context)
     private val sdkSessionManager = SdkSessionManager(AuthService())
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
+    val themeConfiguration = ThemeConfigurationController()
+    val useCustomTheme = themeConfiguration.useCustomTheme
+    val selectedThemePreset = themeConfiguration.selectedPreset
 
     // Track if we've initialized the SDK at least once
     private var hasInitialized = false
@@ -417,6 +423,30 @@ class ReusableBottomSheetPaymentViewModel(private val context: Context) : ViewMo
         } else {
             Log.d(TAG, "Bottom sheet not open or SDK not initialized")
         }
+    }
+
+    fun setUseCustomTheme(enabled: Boolean) {
+        themeConfiguration.setUseCustomTheme(enabled)
+    }
+
+    fun setThemePreset(preset: SampleThemePreset) {
+        themeConfiguration.setPreset(preset)
+    }
+
+    fun resetThemeConfiguration() {
+        themeConfiguration.setUseCustomTheme(false)
+    }
+
+    fun resolvePaymentSheetConfig(
+        isDarkMode: Boolean,
+        fallbackConfig: PaymentSheetConfig,
+    ): PaymentSheetConfig {
+        val themedConfig = themeConfiguration.resolvePaymentSheetConfig(isDarkMode)
+        return themedConfig ?: fallbackConfig
+    }
+
+    fun applyThemeToSdk(isDarkMode: Boolean) {
+        themeConfiguration.applyGlobalTheme(sdk, isDarkMode)
     }
 
     private companion object {

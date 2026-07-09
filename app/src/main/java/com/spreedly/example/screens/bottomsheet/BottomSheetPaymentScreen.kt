@@ -37,7 +37,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,7 +54,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spreedly.example.ui.theme.Spacing
+import com.spreedly.example.MerchantMaskToggleBar
+import com.spreedly.example.qa.ExpressDisplayConfigBar
+import com.spreedly.sdk.ui.CardNumberFormat
+import com.spreedly.sdk.ui.PaymentSheetDisplayConfig
+import com.spreedly.example.ui.components.ThemeConfigurationCard
+import com.spreedly.example.ui.components.ThemeConfigurationStyle
 import com.spreedly.example.viewmodel.bottomSheetPaymentViewModel
 import com.spreedly.paymentsheet.SpreedlyBottomSheet
 import com.spreedly.sdk.ui.ConfigurableFormField
@@ -67,15 +75,39 @@ fun BottomSheetPaymentScreen(
     viewModel: BottomSheetPaymentViewModel = bottomSheetPaymentViewModel(),
 ) {
     val sdk = viewModel.sdk
+    val hostedCardDisplayState by sdk.hostedCardDisplayState
     val snackbarHostState = viewModel.snackbarHostState
 
     val isInitializing by viewModel.isInitializing.collectAsState()
     val token by viewModel.token.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
+    val selectedThemePreset by viewModel.selectedThemePreset.collectAsState()
+    val isDarkMode = isSystemInDarkTheme()
+    val paymentSheetConfig =
+        remember(useCustomTheme, selectedThemePreset, isDarkMode) {
+            viewModel.resolvePaymentSheetConfig(isDarkMode)
+        }
+
+    LaunchedEffect(useCustomTheme, selectedThemePreset, isDarkMode) {
+        viewModel.applyThemeToSdk(isDarkMode)
+    }
 
     var allowBlankName by rememberSaveable { mutableStateOf(false) }
     var allowBlankDate by rememberSaveable { mutableStateOf(false) }
     var allowExpiredDate by rememberSaveable { mutableStateOf(false) }
+    var sheetEnableAutofill by rememberSaveable { mutableStateOf(true) }
+    var sheetUseMaskedFormat by rememberSaveable { mutableStateOf(false) }
+    val sheetDisplayConfig =
+        PaymentSheetDisplayConfig(
+            enableAutofill = sheetEnableAutofill,
+            cardNumberFormat =
+                if (sheetUseMaskedFormat) {
+                    CardNumberFormat.MASKED
+                } else {
+                    CardNumberFormat.PRETTY
+                },
+        )
 
     LaunchedEffect(allowBlankName) {
         if (!isInitializing) {
@@ -162,6 +194,20 @@ fun BottomSheetPaymentScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 48.dp),
+            )
+
+            ThemeConfigurationCard(
+                useCustomTheme = useCustomTheme,
+                selectedPreset = selectedThemePreset,
+                onUseCustomThemeChange = viewModel::setUseCustomTheme,
+                onPresetSelected = viewModel::setThemePreset,
+                onResetTheme = viewModel::resetThemeConfiguration,
+                style = ThemeConfigurationStyle.BUTTON,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 24.dp),
             )
 
             // Main Card
@@ -449,6 +495,22 @@ fun BottomSheetPaymentScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            MerchantMaskToggleBar(
+                sdk = sdk,
+                hostedCardDisplayState = hostedCardDisplayState,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+
+            ExpressDisplayConfigBar(
+                enableAutofill = sheetEnableAutofill,
+                onEnableAutofillChange = { sheetEnableAutofill = it },
+                useMaskedFormat = sheetUseMaskedFormat,
+                onUseMaskedFormatChange = { sheetUseMaskedFormat = it },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Info Section
@@ -478,7 +540,8 @@ fun BottomSheetPaymentScreen(
 
         SpreedlyBottomSheet(
             sdk = sdk,
-            config = PaymentSheetConfig.Default,
+            config = paymentSheetConfig,
+            displayConfig = sheetDisplayConfig,
             nameFieldDisplayMode = NameFieldDisplayMode.SEPARATE_FIELDS,
             allowBlankName = allowBlankName,
             allowBlankDate = allowBlankDate,

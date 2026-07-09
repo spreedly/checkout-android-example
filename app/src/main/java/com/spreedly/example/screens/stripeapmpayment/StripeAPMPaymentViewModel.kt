@@ -15,7 +15,10 @@ import com.spreedly.example.utils.SdkSessionManager
 import com.spreedly.sdk.Spreedly
 import com.spreedly.sdk.ui.PaymentResult
 import com.spreedly.stripe.SpreedlyStripeAPMCheckout
+import com.spreedly.stripe.StripeAPMAppearanceConfig
 import com.spreedly.stripe.StripeAPMConfig
+import com.spreedly.striperadar.SpreedlyStripeRadar
+import com.spreedly.striperadar.StripeRadarConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,6 +74,17 @@ class StripeAPMPaymentViewModel(
     private val _selectedApmTypes = MutableStateFlow(setOf(apmTypes.first()))
     val selectedApmTypes: StateFlow<Set<StripeAPMType>> = _selectedApmTypes.asStateFlow()
 
+    private val _radarEnabled = MutableStateFlow(false)
+    val radarEnabled: StateFlow<Boolean> = _radarEnabled.asStateFlow()
+
+    private val _radarSessionId = MutableStateFlow<String?>(null)
+    val radarSessionId: StateFlow<String?> = _radarSessionId.asStateFlow()
+
+    private val _radarState = MutableStateFlow(RadarState.IDLE)
+    val radarState: StateFlow<RadarState> = _radarState.asStateFlow()
+
+    enum class RadarState { IDLE, COLLECTING, SUCCESS, FAILED }
+
     val products = listOf(
         Product("Sunglasses", "Premium UV protection", 4400, "🕶️"),
         Product("Watch", "Swiss precision", 19900, "⌚"),
@@ -91,15 +105,35 @@ class StripeAPMPaymentViewModel(
         initializeSdkOnScreenLoad()
     }
 
-    /**
-     * Initializes the SDK when the screen loads, so there's no delay when tapping Pay.
-     */
     private fun initializeSdkOnScreenLoad() {
         viewModelScope.launch {
             val initialized = initializeSdkIfNeeded()
             if (initialized) {
                 startPaymentResultObserver()
             }
+        }
+    }
+
+    fun toggleRadar(enabled: Boolean) {
+        _radarEnabled.value = enabled
+        if (enabled) {
+            collectRadarSession()
+        } else {
+            _radarSessionId.value = null
+            _radarState.value = RadarState.IDLE
+        }
+    }
+
+    private fun collectRadarSession() {
+        val publishableKey = BuildConfig.STRIPE_PUBLISHABLE_KEY
+        if (publishableKey.isBlank()) return
+
+        _radarState.value = RadarState.COLLECTING
+        viewModelScope.launch {
+            val config = StripeRadarConfig(publishableKey = publishableKey)
+            val sessionId = SpreedlyStripeRadar.createRadarSession(config, context)
+            _radarSessionId.value = sessionId
+            _radarState.value = if (sessionId != null) RadarState.SUCCESS else RadarState.FAILED
         }
     }
 
@@ -147,7 +181,10 @@ class StripeAPMPaymentViewModel(
         )
     }
 
-    fun startPayment(activity: Activity) {
+    fun startPayment(
+        activity: Activity,
+        appearance: StripeAPMAppearanceConfig? = null,
+    ) {
         val product = _selectedProduct.value
         if (product == null) {
             _errorMessage.value = "Please select a product"
@@ -177,6 +214,7 @@ class StripeAPMPaymentViewModel(
                     currencyCode = "EUR",
                     apmTypes = apmTypeIds,
                     redirectUrl = SpreedlyPurchaseAPIClient.redirectUrl(context, "stripe/checkout"),
+                    radarSessionId = if (_radarEnabled.value) _radarSessionId.value else null,
                 )
 
                 val transaction = response.transaction
@@ -218,7 +256,7 @@ class StripeAPMPaymentViewModel(
                 )
 
                 _stage.value = Stage.CHECKOUT
-                SpreedlyStripeAPMCheckout.present(config, activity)
+                SpreedlyStripeAPMCheckout.present(config, activity, appearance)
             } catch (e: Exception) {
                 _errorMessage.value = "Pending purchase failed"
                 _stage.value = Stage.IDLE

@@ -3,6 +3,15 @@
     <string name="payment_sdk">Payment SDK</string>
     <string name="java_hosted_fields_demo">Java Hosted Fields Demo</string>
     <string name="enter_your_payment_details">Enter your payment details</string>
+    <string name="sample_card_display_format_label">Card display format (setNumberFormat)</string>
+    <string name="sample_format_pretty">Pretty</string>
+    <string name="sample_format_plain">Plain</string>
+    <string name="sample_format_masked">Masked</string>
+    <string name="sample_mask_toggle_caption">Pretty: grouped digits, last-4 blur when unfocused. Plain: all digits visible. Masked: every digit • while typing. toggleMask() cycles mask (first tap from Pretty → full masked).</string>
+    <string name="sample_toggle_mask_button">toggleMask()</string>
+    <string name="sample_pan_masked_policy">hostedCardDisplayState.panMasked: %1$s</string>
+    <string name="sample_pan_masked_field_state">HostedFieldState.isPanMasked (card): %1$s</string>
+    <string name="sample_pan_masked_field_state_na">HostedFieldState.isPanMasked (card): —</string>
     <string name="success">Success</string>
     <string name="payment_token_generated">Payment Token Generated</string>
     <string name="token_placeholder">token_placeholder</string>

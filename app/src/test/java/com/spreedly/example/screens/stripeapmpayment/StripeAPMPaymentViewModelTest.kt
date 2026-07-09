@@ -407,7 +407,7 @@ class StripeAPMPaymentViewModelTest {
         startPaymentResultObserver(viewModel)
 
         // When
-        paymentResultFlow.value = PaymentResult.Canceled
+        paymentResultFlow.value = PaymentResult.Canceled()
         advanceUntilIdle()
 
         // Then - default selected APM is iDEAL
