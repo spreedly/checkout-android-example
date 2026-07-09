@@ -347,6 +347,7 @@ The bottom sheet auto-dismisses on `Completed`, `Canceled`, and API/network `Fai
 | `sdk` | `Spreedly` | *(required)* | SDK instance |
 | `modifier` | `Modifier` | `Modifier` | Compose modifier |
 | `config` | `PaymentSheetConfig?` | `null` | Color and styling configuration. Falls back to global theme if null |
+| `displayConfig` | `PaymentSheetDisplayConfig?` | `null` | Express display (`enableAutofill`, initial `cardNumberFormat`). `null` reads legacy fields from the resolved `PaymentSheetConfig` (same as 1.1.0). Non-null uses that object as-is (no field-level merge). iOS: `CardFormDropInDisplayConfig` |
 | `borderRadius` | `Dp` | `8.dp` | Corner radius for form elements |
 | `fieldShape` | `Shape` | `RoundedCornerShape(8.dp)` | Shape for input fields |
 | `nameFieldDisplayMode` | `NameFieldDisplayMode` | `SINGLE_FIELD` | How cardholder name is displayed |
@@ -358,6 +359,39 @@ The bottom sheet auto-dismisses on `Completed`, `Canceled`, and API/network `Fai
 | `showSavePaymentCheckbox` | `Boolean` | `true` | Show "Save card" checkbox |
 | `savePaymentCheckboxLabel` | `String` | `"Save payment information for future use"` | Checkbox label text |
 | `savePaymentCheckboxDefaultChecked` | `Boolean` | `false` | Whether the checkbox starts checked |
+| `coreFieldLabels` | `PaymentSheetCoreFieldLabels?` | `null` | Optional core card field label and placeholder overrides (iOS `DropInCoreFieldLabels` parity). `null` keeps SDK defaults |
+
+### Core field copy (`PaymentSheetCoreFieldLabels`)
+
+Override labels and placeholders for card number, CVV, and expiration fields only. Name and address labels use existing `additionalFields` / name-mode behavior and are not part of this config.
+
+```kotlin
+import com.spreedly.sdk.ui.PaymentSheetCoreFieldLabels
+
+SpreedlyBottomSheet(
+    sdk = sdk,
+    coreFieldLabels = PaymentSheetCoreFieldLabels(
+        cardNumberTitle = "Card number",
+        cardNumberPlaceholder = "1234 5678 9012 3456",
+        cvcTitle = "CVC",
+        expirationDateTitle = "Expiry",
+        expirationDatePlaceholder = "MM/YY",
+    ),
+)
+```
+
+Java:
+
+```java
+PaymentSheetJavaHelper.setupContent(
+    composeView,
+    sdk,
+    PaymentSheetJavaHelper.createDefaultCoreFieldLabels(), // or your overrides
+    PaymentSheetJavaHelper.createDefaultDisplayConfig()
+);
+```
+
+Blank or null properties fall back to SDK defaults. For CVV, leave `cvcPlaceholder` unset to keep optional-CVV hint behavior when applicable.
 
 ### NameFieldDisplayMode
 
@@ -442,6 +476,13 @@ SpreedlyBottomSheet(sdk = sdk)
 | `textColor` | Input text content |
 | `disabledTextColor` | Text when fields are disabled |
 | `iconColor` | Icons and trailing elements |
+| `placeholderColor` | Hint / placeholder tint in input fields |
+| `enableAutofill` | *(deprecated)* — prefer **`PaymentSheetDisplayConfig`** on **`SpreedlyBottomSheet`** / **`PaymentSheet`**. When `displayConfig` is `null`, this property still applies (1.1.0 path) |
+| `cardNumberFormat` | *(deprecated)* — same migration as `enableAutofill` |
+
+**Express display (preferred):** pass **`displayConfig = PaymentSheetDisplayConfig(...)`** on **`SpreedlyBottomSheet`** (or **`PaymentSheet`**). **`SpreedlyTheme.toPaymentSheetConfig()`** maps colors only; it does not set express autofill or initial card format — use **`displayConfig`** or legacy **`PaymentSheetConfig`** fields when **`displayConfig`** is null.
+
+**Mask / reveal outside the sheet:** `SpreedlyBottomSheet` does not include a mask control. To match the iframe, add a Switch or button **outside** the sheet and call **`sdk.setNumberFormat(CardNumberFormat.PLAIN)`** / **`PRETTY`** or **`sdk.toggleMask()`** while the sheet is open. CARD and CVV inside the sheet already observe **`sdk.hostedCardDisplayState`**. Opening a fresh sheet or **`resetPaymentState()`** resets display state to defaults (`PRETTY`, masked PAN/CVV). Re-apply **`setNumberFormat`** / **`toggleMask`** after reset or successful tokenization if you use a non-default mask.
 
 For full design system documentation, see [Theme & Styling](theme-and-styling.md).
 
@@ -601,6 +642,10 @@ For detailed error handling patterns, see [Error Handling](error-handling.md).
 
 - `config` parameter overrides the global theme. If you pass `PaymentSheetConfig()` (all defaults / `Color.Unspecified`), the global theme fills in. If you pass explicit colors, those take precedence.
 - `PaymentSheetConfig.fromTheme()` must be called inside a `@Composable` function to access `MaterialTheme` colors.
+
+### Express autofill / card format not updating
+
+- **`sdk.setConfig(PaymentSheetConfig(...))`** updates colors and validation wiring used by the sheet, but express **field autofill** and **initial card number format** are driven by the composable **`displayConfig`** / legacy **`PaymentSheetConfig`** fields resolved when **`SpreedlyBottomSheet`** / **`PaymentSheet`** run — not by `setConfig` alone. Pass **`displayConfig`** on the composable (or keep using deprecated **`PaymentSheetConfig.enableAutofill`** / **`cardNumberFormat`** with **`displayConfig = null`**).
 
 ### Form resets unexpectedly
 

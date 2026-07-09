@@ -1,13 +1,11 @@
 # Spreedly Checkout — Android Example
 
-> **This project is for demonstration and reference purposes only.** It is not intended for use in production environments. The code, configuration, and architecture shown here illustrate SDK integration patterns — adapt them to your own security requirements, backend infrastructure, and key management practices before shipping to production.
-
-This sample app demonstrates the [Spreedly Android Checkout SDK](https://github.com/spreedly/checkout-android-sdk) at version **1.0.1** (tag `v1.0.1`).
+This sample app demonstrates the [Spreedly Android Checkout SDK](https://github.com/spreedly/checkout-android-sdk) at version **1.1.0** (tag `v1.1.0`).
 
 ## Setup
 
 1. Clone this repository
-2. Add your GitHub Packages credentials to `~/.gradle/gradle.properties`. Even though [checkout-android-maven](https://github.com/spreedly/checkout-android-maven) is public, GitHub Packages still requires authentication to download Maven artifacts. Create a PAT with `read:packages` scope and add:
+2. Add your GitHub Packages credentials to `~/.gradle/gradle.properties`:
 
 ```properties
 gpr.usr=YOUR_GITHUB_USERNAME
@@ -22,10 +20,10 @@ gpr.key=YOUR_GITHUB_TOKEN
 All SDK modules are resolved from GitHub Packages:
 
 ```kotlin
-implementation("com.spreedly:checkout-paymentsheet:1.0.1")
-implementation("com.spreedly:checkout-braintree-apm:1.0.1")
-implementation("com.spreedly:checkout-stripe-apm:1.0.1")
-implementation("com.spreedly:checkout-threeds:1.0.1")
+implementation("com.spreedly:checkout-paymentsheet:1.1.0")
+implementation("com.spreedly:checkout-braintree-apm:1.1.0")
+implementation("com.spreedly:checkout-stripe-apm:1.1.0")
+implementation("com.spreedly:checkout-threeds:1.1.0")
 ```
 
 ## SDK Documentation
@@ -35,11 +33,4 @@ implementation("com.spreedly:checkout-threeds:1.0.1")
 
 ## Support
 
-- **Spreedly Documentation**: [docs.spreedly.com](https://docs.spreedly.com/)
-- **Support Portal**: [spreedly.com/support](https://spreedly.com/support/)
-
-## Legal
-
-- [Terms of Service](https://legal.spreedly.com/#terms)
-- [Privacy Policy](https://legal.spreedly.com/#privacy-policy)
-- [License](LICENSE) (Apache 2.0)
+For questions or issues, please contact the Spreedly team or create an issue in the [SDK repository](https://github.com/spreedly/checkout-android-sdk/issues).

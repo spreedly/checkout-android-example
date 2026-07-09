@@ -414,6 +414,7 @@ fun FlexibleExpiryScreen(
                         config = CustomFieldsConfig.Default,
                         value = sdk.paymentState.value.cardNumber.value,
                         onChange = { sdk.callbacks.onCardNumberChange(it, true) },
+                        sdk = sdk,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -489,6 +490,7 @@ fun FlexibleExpiryScreen(
                         config = CustomFieldsConfig.Default,
                         value = sdk.paymentState.value.securityCode.value,
                         onChange = { sdk.callbacks.onSecurityCodeChange(it) },
+                        sdk = sdk,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))

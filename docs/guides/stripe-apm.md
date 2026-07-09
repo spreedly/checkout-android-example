@@ -291,6 +291,7 @@ val clientSecret = transaction.gatewaySpecificResponseFields
 
 ```kotlin
 import com.spreedly.stripe.StripeAPMConfig
+import com.spreedly.stripe.StripeAPMAppearanceConfig
 import com.spreedly.stripe.SpreedlyStripeAPMCheckout
 
 val config = StripeAPMConfig(
@@ -301,6 +302,19 @@ val config = StripeAPMConfig(
 )
 
 SpreedlyStripeAPMCheckout.present(config, activity)
+```
+
+Optional **PaymentSheet appearance** (colors, shapes, typography, primary button) maps to Stripe
+`PaymentSheet.Appearance` via [StripeAPMAppearanceConfig](../../stripe/src/main/java/com/spreedly/stripe/StripeAPMAppearanceConfig.kt).
+Field support is documented in [STRIPE_22_8_APPEARANCE_FIELD_MATRIX](../development/STRIPE_22_8_APPEARANCE_FIELD_MATRIX.md).
+
+```kotlin
+val appearance = StripeAPMAppearanceConfig(
+    shapes = StripeAPMAppearanceConfig.Shapes(cornerRadiusDp = 12f, borderStrokeWidthDp = 1f),
+    colors = StripeAPMAppearanceConfig.Colors(primary = 0xFF6750A4.toInt()),
+    typography = StripeAPMAppearanceConfig.Typography(fontSizeScaleFactor = 1.05, fontFamilyResId = null),
+)
+SpreedlyStripeAPMCheckout.present(config, activity, appearance)
 ```
 
 The SDK will:
@@ -369,7 +383,7 @@ class StripeAPMPaymentViewModel(
                     merchantDisplayName = "Example Store",
                 )
 
-                SpreedlyStripeAPMCheckout.present(config, activity)
+                SpreedlyStripeAPMCheckout.present(config, activity, appearance)
 
             } catch (e: Exception) {
                 _errorMessage.value = e.message
@@ -405,8 +419,10 @@ StripeAPMJavaHelper.startPaymentResultMonitoring(
     }
 );
 
-// Present the Stripe PaymentSheet
+// Present the Stripe PaymentSheet (optional third argument: StripeAPMAppearanceConfig)
 StripeAPMJavaHelper.presentCheckout(config, this);
+// Or with appearance:
+// StripeAPMJavaHelper.presentCheckout(config, this, appearance);
 
 // Check status
 boolean active = StripeAPMJavaHelper.isCheckoutActive();
@@ -466,7 +482,10 @@ with `state = "pending"` — treat this as a soft success and confirm via your b
 
 ### PaymentResult.Canceled
 
-Emitted when the user dismisses the Stripe PaymentSheet without completing payment.
+Emitted when the user dismisses the Stripe PaymentSheet without completing payment. Use
+`paymentResultFlow` / `PaymentResult.Canceled` to detect user dismissals. `ApmCheckoutCompleted`
+telemetry records `success = false` for cancel as well, so do not infer cancel from telemetry
+alone.
 
 ---
 
@@ -622,7 +641,7 @@ Singleton (`object`) for presenting Stripe APM checkout via the native Stripe Pa
 
 **Package:** `com.spreedly.stripe`
 
-#### `present(config: StripeAPMConfig, activity: Activity)`
+#### `present(config: StripeAPMConfig, activity: Activity, appearance: StripeAPMAppearanceConfig? = null)`
 
 Launch the Stripe PaymentSheet for APM checkout. Validates the config, launches a transparent
 `StripeAPMActivity`, and presents the PaymentSheet.
@@ -631,10 +650,14 @@ Launch the Stripe PaymentSheet for APM checkout. Validates the config, launches 
 
 - `config` — The Stripe APM configuration built from the purchase response
 - `activity` — The Activity context to launch from
+- `appearance` — Optional styling mapped to Stripe `PaymentSheet.Appearance` (omit for defaults)
 
 ```kotlin
 SpreedlyStripeAPMCheckout.present(config, activity)
+SpreedlyStripeAPMCheckout.present(config, activity, appearance)
 ```
+
+If a checkout is already active, the SDK logs a warning and still starts the new session.
 
 ---
 
@@ -705,11 +728,16 @@ fun startPaymentResultMonitoring(
 )
 ```
 
-#### `presentCheckout(config: StripeAPMConfig, activity: Activity)`
+#### `presentCheckout(config: StripeAPMConfig, activity: Activity, appearance: StripeAPMAppearanceConfig? = null)`
 
 ```kotlin
 @JvmStatic
-fun presentCheckout(config: StripeAPMConfig, activity: Activity)
+@JvmOverloads
+fun presentCheckout(
+    config: StripeAPMConfig,
+    activity: Activity,
+    appearance: StripeAPMAppearanceConfig? = null,
+)
 ```
 
 #### `isCheckoutActive(): Boolean`

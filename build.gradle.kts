@@ -25,6 +25,22 @@ tasks.withType<Jar>().configureEach {
 
 apiValidation {
     ignoredProjects += listOf("app")
+    ignoredClasses += listOf("com.spreedly.sdk.BuildConfig")
+}
+
+tasks.register("refreshLegacyAbiDumps") {
+    group = "verification"
+    description =
+        "Rebuild build/kotlin/abi-legacy dumps from compiled classes. " +
+            "Use with -PspreedlyRefreshAbiDumps so only dumps bypass the build cache (compile stays cached). " +
+            "To update committed api/*.api files, run updateLegacyAbi instead."
+    dependsOn(
+        subprojects
+            .filter { sub ->
+                sub.layout.projectDirectory.file("api/${sub.name}.api").asFile.exists()
+            }
+            .map { "${it.path}:dumpLegacyAbi" },
+    )
 }
 
 

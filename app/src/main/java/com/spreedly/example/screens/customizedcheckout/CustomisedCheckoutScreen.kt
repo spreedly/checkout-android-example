@@ -200,6 +200,7 @@ fun CustomisedCheckoutScreen(
                                 config = config,
                                 value = sdk.paymentState.value.cardNumber.value,
                                 onChange = { sdk.callbacks.onCardNumberChange(it, true) },
+                                sdk = sdk,
                             )
                         }
                     }
@@ -257,6 +258,7 @@ fun CustomisedCheckoutScreen(
                                 config = config,
                                 value = sdk.paymentState.value.securityCode.value,
                                 onChange = { sdk.callbacks.onSecurityCodeChange(it) },
+                                sdk = sdk,
                             )
                         }
                     }

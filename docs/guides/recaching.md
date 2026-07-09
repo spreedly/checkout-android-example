@@ -66,6 +66,8 @@ fun CheckoutScreen() {
 }
 ```
 
+Before calling `recachePaymentMethod`, initialize the SDK with `Spreedly.init(SpreedlySDKInitOptions(...))`. Keep `SpreedlyRecacheUI` in the composition tree whenever recache may run so the CVV UI can be presented.
+
 ### 2. Trigger Recaching
 
 ```kotlin
@@ -122,8 +124,8 @@ suspend fun recachePaymentMethod(
 - `config`: UI and display configuration
 
 **Returns:**
-- `Result.Success<PaymentMethodResponse>`: Contains updated payment method token
-- `Result.Error<SpreedlyNetworkError>`: Contains error details
+- `Result.Success<PaymentMethodResponse>`: Contains the updated payment method; use `transaction.paymentMethod.token` or `recacheToken` / `paymentMethodUpdatedAt` extensions on the response
+- `Result.Error<SpreedlyNetworkError>`: Validation, network, or API failure — including when the API returns HTTP 200 with `transaction.succeeded == false` (normalized to `Error`)
 
 **Throws:**
 - `IllegalStateException`: If SDK is not initialized
@@ -210,6 +212,34 @@ viewModelScope.launch {
     }
 }
 ```
+
+If you also collect `paymentResultFlow` for tokenization on the same `Spreedly` instance, recache outcomes **do not** appear there. Use **`recacheResultFlow`** or the **`recachePaymentMethod`** return value for recache only (iframe `recache` event parity). `paymentResultFlow` remains for tokenization, APM, and offsite flows.
+
+### PaymentMethodResponse accessors
+
+Extensions on `PaymentMethodResponse` after a successful recache:
+
+| API | Description |
+|-----|-------------|
+| `paymentMethodUpdatedAt` | ISO-8601 timestamp from `transaction.paymentMethod.updatedAt` |
+| `recacheToken` | Payment method token after recache (same value as `transaction.paymentMethod.token`) |
+| `PaymentMethodTransactionTypes.RECACHE_SENSITIVE_DATA` | String constant `RecacheSensitiveData` — typical `transaction.transactionType` for recache responses |
+
+```kotlin
+when (val result = spreedly.recachePaymentMethod(token, config)) {
+    is Result.Success -> {
+        val updatedAt = result.data.paymentMethodUpdatedAt
+        val pmToken = result.data.recacheToken
+    }
+    is Result.Error -> { /* handle SpreedlyNetworkError */ }
+}
+```
+
+---
+
+### Recache and paymentResultFlow
+
+CVV recache is delivered **only** on **`recacheResultFlow`** and from the **`recachePaymentMethod`** suspend return as `Result<PaymentMethodResponse, SpreedlyNetworkError>`. It is **not** mirrored to **`paymentResultFlow`** (unlike tokenization, which completes on `paymentResultFlow` as `PaymentResult`).
 
 ---
 
@@ -676,12 +706,7 @@ suspend fun recacheWithErrorHandling(
         
         return when (result) {
             is Result.Success -> {
-                if (result.data.transaction.succeeded) {
-                    result.data.transaction.paymentMethod.token
-                } else {
-                    showError("Recaching failed: ${result.data.transaction.message}")
-                    null
-                }
+                result.data.transaction.paymentMethod.token
             }
             is Result.Error -> {
                 val errorMessage = when (val error = result.error) {
@@ -828,7 +853,8 @@ spreedly.recacheResultFlow.collect { result -> }
 
 Choose based on your use case:
 - Use **direct result** for simple, one-time operations
-- Use **flow** for reactive UI updates or when you need to observe results in multiple places
+- Use **`recacheResultFlow`** for reactive UI updates or when you need to observe results in multiple places
+- **`paymentResultFlow`** is for tokenization and other payment flows only — not for recache outcomes
 
 ---
 
@@ -858,12 +884,14 @@ RecacheConfig config = RecacheJavaHelper.createRecacheConfig(
 );
 RecacheJavaHelper.recachePaymentMethod(
     this, sdk, paymentMethodToken, config,
-    token -> Log.d("Recache", "Recache succeeded"),
+    (token, updatedAt) -> Log.d("Recache", "token=" + token + " updatedAt=" + updatedAt),
     error -> Log.e("Recache", "Recache failed")
 );
 ```
 
-See `RecacheJavaHelper` for full parameter options and `createRecacheConfigFull()` for custom button text and labels.
+The `BiConsumer` second argument is the ISO-8601 `updatedAt` timestamp when present (same value as `PaymentMethodResponse.paymentMethodUpdatedAt` in Kotlin).
+
+See `RecacheJavaHelper` for the `Consumer<String>` token-only overload, full parameter options, and `createRecacheConfigFull()` for custom button text and labels.
 
 ---
 

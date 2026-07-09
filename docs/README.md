@@ -16,6 +16,7 @@
 | [ACH Bank Account](guides/ach-bank-account.md) | Tokenize bank accounts with pre-built UI, custom layout, or headless flow |
 | [Offsite Payments](guides/offsite-payments.md) | PayPal, Pix, Boleto via Chrome Custom Tabs |
 | [Stripe APM](guides/stripe-apm.md) | iDEAL, Bancontact, EPS, P24, SEPA via Stripe |
+| [Stripe Radar](guides/stripe-radar.md) | Device fingerprinting for fraud detection via Stripe Radar |
 | [Braintree APM](guides/braintree-apm.md) | PayPal and Venmo via Braintree |
 | [3DS Global](guides/3ds-global.md) | Forter-based 3D Secure authentication (`checkout-threeds`) |
 | [3DS Gateway-Specific](guides/3ds-gateway-specific.md) | Gateway-managed 3DS via Chrome Custom Tabs (`checkout-threeds`) |

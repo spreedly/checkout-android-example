@@ -8,9 +8,17 @@ import androidx.lifecycle.viewModelScope
 import com.spreedly.app.BuildConfig
 import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
+import com.spreedly.example.qa.FieldStateInspectorController
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
+import com.spreedly.example.ui.theme.SampleThemePreset
+import com.spreedly.example.ui.theme.SplFieldStyleOverrides
+import com.spreedly.example.ui.theme.SplFieldTarget
+import com.spreedly.example.ui.theme.ThemeConfigurationController
+import com.spreedly.example.utils.isCvvFormRequirementMet
+import com.spreedly.hostedfields.models.HostedFieldState
 import com.spreedly.sdk.Spreedly
+import com.spreedly.sdk.models.FormFieldType
 import com.spreedly.sdk.ui.PaymentResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,14 +31,22 @@ import kotlinx.coroutines.launch
  * This ViewModel handles both the Spreedly SDK instance and the custom form field states
  * that cannot be saved using rememberSaveable due to their complex nature.
  */
-class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
-    // Spreedly SDK instance - survives configuration changes via ViewModel
+class CustomTextFieldsViewModel(
+    private val context: Context,
+    private val skipAutoInitializeSdk: Boolean = false,
+) : ViewModel() {
     val sdk = Spreedly()
 
-    // SnackbarHostState for showing messages
     val snackbarHostState = SnackbarHostState()
 
-    // UI State
+    val fieldStateInspector = FieldStateInspectorController(sdk)
+    val inspectorUiState = fieldStateInspector.uiState
+    val themeConfiguration = ThemeConfigurationController()
+    val useCustomTheme = themeConfiguration.useCustomTheme
+    val selectedThemePreset = themeConfiguration.selectedPreset
+    val fieldOverrideTarget = themeConfiguration.fieldOverrideTarget
+    val fieldStyleOverrides = themeConfiguration.fieldOverrides
+
     private val _isInitializing = MutableStateFlow(true)
     val isInitializing: StateFlow<Boolean> = _isInitializing.asStateFlow()
 
@@ -40,7 +56,6 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
     private val _paymentToken = MutableStateFlow("")
     val paymentToken: StateFlow<String> = _paymentToken.asStateFlow()
 
-    // Custom form field states - managed in ViewModel to survive configuration changes
     private val _nameInput = MutableStateFlow(NameInput(""))
     val nameInput: StateFlow<NameInput> = _nameInput.asStateFlow()
 
@@ -56,19 +71,28 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
     private val _zipCodeInput = MutableStateFlow(ZipCodeInput(""))
     val zipCodeInput: StateFlow<ZipCodeInput> = _zipCodeInput.asStateFlow()
 
-    // Track when payment completed to prevent race conditions
+    private val _cardValid = MutableStateFlow(false)
+    private val _cvvValid = MutableStateFlow(false)
+    private val _expiryValid = MutableStateFlow(false)
+
+    private val _isFormValid = MutableStateFlow(false)
+    val isFormValid: StateFlow<Boolean> = _isFormValid.asStateFlow()
+
     private var lastPaymentCompletedTime = 0L
 
-    // Payment method repository for retention
     private val paymentMethodRepository = PaymentMethodRepository(context)
     private val sdkSessionManager = SdkSessionManager(AuthService())
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
     private var paymentResultJob: Job? = null
     private var initJob: Job? = null
 
-    // Initialize SDK on ViewModel creation
     init {
-        initializeSDK()
+        refreshInspectorAggregate()
+        if (skipAutoInitializeSdk) {
+            _isInitializing.value = false
+        } else {
+            initializeSDK()
+        }
     }
 
     private fun initializeSDK() {
@@ -81,7 +105,7 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
                             observePaymentResults()
                             _isInitializing.value = false
                         },
-                        onFailure = { e ->
+                        onFailure = {
                             snackbarHostState.showSnackbar("Failed to initialize SDK")
                             _isInitializing.value = false
                         },
@@ -120,7 +144,6 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
 
     fun setProcessing(processing: Boolean) {
         if (processing) {
-            // Check if payment completed recently (within last 1000ms) - race condition protection
             val timeSinceCompletion = System.currentTimeMillis() - lastPaymentCompletedTime
             if (timeSinceCompletion < 1000 && _paymentToken.value.isNotEmpty()) {
                 return
@@ -131,7 +154,38 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
 
     fun clearToken() {
         _paymentToken.value = ""
-        lastPaymentCompletedTime = 0L // Reset completion tracking
+        lastPaymentCompletedTime = 0L
+    }
+
+    fun onFieldStateUpdate(state: HostedFieldState) {
+        fieldStateInspector.onFieldStateChanged(state)
+    }
+
+    fun onHostedFieldValidation(fieldType: FormFieldType, isValid: Boolean) {
+        when (fieldType) {
+            is FormFieldType.CARD -> _cardValid.value = isValid
+            is FormFieldType.CVV -> _cvvValid.value = isValid
+            is FormFieldType.EXPIRY_DATE -> _expiryValid.value = isValid
+            else -> Unit
+        }
+        refreshInspectorAggregate()
+    }
+
+    fun onCheckoutFieldsClearedBySdk() {
+        _cardValid.value = false
+        _cvvValid.value = false
+        _expiryValid.value = false
+        refreshInspectorAggregate()
+    }
+
+    fun performFullPaymentReset() {
+        sdk.resetPaymentState()
+        fieldStateInspector.resetInspector()
+        _cardValid.value = false
+        _cvvValid.value = false
+        _expiryValid.value = false
+        resetFormFields()
+        refreshInspectorAggregate()
     }
 
     fun reinitialize() {
@@ -141,10 +195,6 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
         initializeSDK()
     }
 
-    /**
-     * Handle payment retention after successful payment creation.
-     * Calls the backend retain API.
-     */
     private fun handlePaymentRetention(result: PaymentResult.Completed) {
         viewModelScope.launch {
             try {
@@ -154,8 +204,8 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
                         Log.d(TAG, "CustomTextFieldsViewModel: Payment method retained successfully")
                         snackbarHostState.showSnackbar("Payment method saved for future use!")
                     },
-                    onFailure = { e ->
-                        Log.d(TAG, "CustomTextFieldsViewModel: Error retaining payment method: ${e::class.simpleName}")
+                    onFailure = {
+                        Log.d(TAG, "CustomTextFieldsViewModel: Error retaining payment method")
                         snackbarHostState.showSnackbar("Payment created but failed to save")
                     },
                 )
@@ -165,28 +215,36 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    // Form field update methods
     fun updateNameInput(value: String) {
         _nameInput.value = NameInput(value, false)
+        fieldStateInspector.logOnChangeReadout("Full Name", value)
+        refreshInspectorAggregate()
     }
 
     fun updateAddressInput(value: String) {
         _addressInput.value = AddressInput(value, false)
+        fieldStateInspector.logOnChangeReadout("Address Line 1", value)
+        refreshInspectorAggregate()
     }
 
     fun updateCityInput(value: String) {
         _cityInput.value = CityInput(value, false)
+        fieldStateInspector.logOnChangeReadout("City", value)
+        refreshInspectorAggregate()
     }
 
     fun updateStateInput(value: String) {
         _stateInput.value = StateInput(value, false)
+        fieldStateInspector.logOnChangeReadout("State", value)
+        refreshInspectorAggregate()
     }
 
     fun updateZipCodeInput(value: String) {
         _zipCodeInput.value = ZipCodeInput(value, false)
+        fieldStateInspector.logOnChangeReadout("Zip Code", value)
+        refreshInspectorAggregate()
     }
 
-    // Reset all form fields
     fun resetFormFields() {
         _nameInput.value = NameInput("")
         _addressInput.value = AddressInput("")
@@ -195,15 +253,76 @@ class CustomTextFieldsViewModel(private val context: Context) : ViewModel() {
         _zipCodeInput.value = ZipCodeInput("")
     }
 
-    // Backup timeout mechanism in case payment result flow fails
     fun startPaymentPolling() {
         viewModelScope.launch {
-            kotlinx.coroutines.delay(30000) // 30-second timeout
+            kotlinx.coroutines.delay(30000)
             if (_isProcessing.value) {
                 _isProcessing.value = false
                 snackbarHostState.showSnackbar("Payment processing timeout")
             }
         }
+    }
+
+    private fun computeIsFormValid(): Boolean =
+        _cardValid.value &&
+            isCvvFormRequirementMet(_cvvValid.value) &&
+            _expiryValid.value &&
+            _nameInput.value.isValid &&
+            _addressInput.value.isValid &&
+            _cityInput.value.isValid &&
+            _stateInput.value.isValid &&
+            _zipCodeInput.value.isValid
+
+    private fun refreshInspectorAggregate() {
+        _isFormValid.value = computeIsFormValid()
+        fieldStateInspector.configureAggregate(
+            fields =
+                listOf(
+                    "Card number" to { _cardValid.value },
+                    "Security code (CVC)" to { isCvvFormRequirementMet(_cvvValid.value) },
+                    "MM/YY" to { _expiryValid.value },
+                    "Full Name" to { _nameInput.value.isValid },
+                    "Address Line 1" to { _addressInput.value.isValid },
+                    "City" to { _cityInput.value.isValid },
+                    "State" to { _stateInput.value.isValid },
+                    "Zip Code" to { _zipCodeInput.value.isValid },
+                ),
+            isFormValid = ::computeIsFormValid,
+        )
+        fieldStateInspector.refreshMismatch(sdk.hostedCardDisplayState.value)
+    }
+
+    fun setUseCustomTheme(enabled: Boolean) {
+        themeConfiguration.setUseCustomTheme(enabled)
+    }
+
+    fun setThemePreset(preset: SampleThemePreset) {
+        themeConfiguration.setPreset(preset)
+    }
+
+    fun resetThemeConfiguration() {
+        themeConfiguration.setUseCustomTheme(false)
+    }
+
+    fun setFieldOverrideTarget(target: SplFieldTarget) {
+        themeConfiguration.setFieldOverrideTarget(target)
+    }
+
+    fun updateFieldStyleOverrides(overrides: SplFieldStyleOverrides) {
+        themeConfiguration.updateFieldOverrides(overrides)
+    }
+
+    fun clearFieldStyleOverrides() {
+        themeConfiguration.clearFieldOverrides()
+    }
+
+    fun resolveSplFieldConfig(
+        formFieldType: FormFieldType,
+        isDarkMode: Boolean,
+    ) = themeConfiguration.resolveFieldConfig(formFieldType, isDarkMode)
+
+    fun applyThemeToSdk(isDarkMode: Boolean) {
+        themeConfiguration.applyGlobalTheme(sdk, isDarkMode)
     }
 
     private companion object {

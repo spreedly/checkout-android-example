@@ -8,8 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.spreedly.app.BuildConfig
 import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
+import com.spreedly.example.qa.FieldStateInspectorController
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
+import com.spreedly.example.utils.isCvvFormRequirementMet
+import com.spreedly.hostedfields.models.HostedFieldState
+import com.spreedly.sdk.models.FormFieldType
 import com.spreedly.sdk.Spreedly
 import com.spreedly.sdk.ui.PaymentResult
 import kotlinx.coroutines.Job
@@ -38,6 +42,14 @@ class ConfigurationChangeAwareViewModel(private val context: Context) : ViewMode
 
     val snackbarHostState = SnackbarHostState()
 
+    val fieldStateInspector = FieldStateInspectorController(sdk)
+    val inspectorUiState = fieldStateInspector.uiState
+
+    private val _cardValid = MutableStateFlow(false)
+    private val _cvvValid = MutableStateFlow(false)
+    private val _expiryValid = MutableStateFlow(false)
+    private val _nameValid = MutableStateFlow(false)
+
     // UI State
     private val _isInitializing = MutableStateFlow(true)
     val isInitializing: StateFlow<Boolean> = _isInitializing.asStateFlow()
@@ -56,7 +68,53 @@ class ConfigurationChangeAwareViewModel(private val context: Context) : ViewMode
 
     // Initialize SDK on ViewModel creation
     init {
+        refreshInspectorAggregate()
         initializeSDK()
+    }
+
+    fun onHostedFieldState(state: HostedFieldState) {
+        fieldStateInspector.onFieldStateChanged(state)
+        onHostedFieldValidation(state.fieldType, state.isValid)
+    }
+
+    fun onHostedFieldValidation(fieldType: FormFieldType, isValid: Boolean) {
+        when (fieldType) {
+            is FormFieldType.CARD -> _cardValid.value = isValid
+            is FormFieldType.CVV -> _cvvValid.value = isValid
+            is FormFieldType.EXPIRY_DATE -> _expiryValid.value = isValid
+            is FormFieldType.NAME -> _nameValid.value = isValid
+            else -> Unit
+        }
+        refreshInspectorAggregate()
+    }
+
+    fun performFullPaymentReset() {
+        sdk.resetPaymentState()
+        fieldStateInspector.resetInspector()
+        _cardValid.value = false
+        _cvvValid.value = false
+        _expiryValid.value = false
+        _nameValid.value = false
+        refreshInspectorAggregate()
+    }
+
+    private fun refreshInspectorAggregate() {
+        fieldStateInspector.configureAggregate(
+            fields =
+                listOf(
+                    "Card number" to { _cardValid.value },
+                    "Security code (CVC)" to { isCvvFormRequirementMet(_cvvValid.value) },
+                    "MM/YY" to { _expiryValid.value },
+                    "Name on Card" to { _nameValid.value },
+                ),
+            isFormValid = {
+                _cardValid.value &&
+                    isCvvFormRequirementMet(_cvvValid.value) &&
+                    _expiryValid.value &&
+                    _nameValid.value
+            },
+        )
+        fieldStateInspector.refreshMismatch(sdk.hostedCardDisplayState.value)
     }
 
     private fun initializeSDK() {

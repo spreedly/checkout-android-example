@@ -77,7 +77,7 @@ protobuf = "0.9.5"                      # Protobuf plugin
 firebaseAppDistribution = "5.1.1"       # Firebase App Distribution
 googleServices = "4.4.4"                # Google Services plugin
 datadog = "3.2.0"                       # Datadog monitoring SDK
-spreedlySdk = "1.0.1"                   # Spreedly SDK version - first public release
+spreedlySdk = "1.1.0"                   # Spreedly SDK version
 forter3ds = "2.0.4"
 stripe = "22.8.1"                        # Stripe Android SDK for APM (PaymentSheet) - Verify latest at https://github.com/stripe/stripe-android/releases
 braintree = "5.18.0"                    # Braintree Android SDK v5 for PayPal/Venmo - Verify latest at https://github.com/braintree/braintree_android/releases
@@ -205,7 +205,7 @@ datadog-logs = { group = "com.datadoghq", name = "dd-sdk-android-logs", version.
 #     url = uri("https://mobile-sdks.forter.com/android")
 #     credentials {
 #         username = "forter-android-sdk"
-#         password = "<from Forter portal or settings.gradle.kts defaults>"
+#         password = "HvYumAfjVQYQFyoGsmNAefGdR84Esqig"
 #     }
 # }
 forter-sdk = { group = "com.forter.mobile", name = "forter3ds", version.ref = "forter3ds" }

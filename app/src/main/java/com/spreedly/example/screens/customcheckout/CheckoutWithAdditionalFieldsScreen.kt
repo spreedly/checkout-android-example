@@ -289,6 +289,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.CARD_NUMBER) },
                         imeAction = getImeAction(AdditionalFieldType.CARD_NUMBER),
                         shouldFocus = focusedFieldType == AdditionalFieldType.CARD_NUMBER,
+                        sdk = sdk,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -317,6 +318,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.CVV) },
                         imeAction = getImeAction(AdditionalFieldType.CVV),
                         shouldFocus = focusedFieldType == AdditionalFieldType.CVV,
+                        sdk = sdk,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))

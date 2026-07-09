@@ -37,6 +37,7 @@ public class JavaPaymentActivity extends AppCompatActivity {
     private TextView buttonText;
     private CardView tokenCard;
     private TextView tokenText;
+    private ComposeView expressConfigComposeView;
     private ComposeView composeBottomSheet;
     private ComposeView recacheComposeView;
     private ComposeView savedCardsComposeView;
@@ -91,6 +92,7 @@ public class JavaPaymentActivity extends AppCompatActivity {
         buttonText = findViewById(R.id.java_button_text);
         tokenCard = findViewById(R.id.java_token_card);
         tokenText = findViewById(R.id.java_token_text);
+        expressConfigComposeView = findViewById(R.id.java_express_config_compose_view);
         composeBottomSheet = findViewById(R.id.java_compose_bottom_sheet);
         recacheComposeView = findViewById(R.id.recache_compose_view);
         savedCardsComposeView = findViewById(R.id.saved_cards_compose_view);
@@ -104,13 +106,20 @@ public class JavaPaymentActivity extends AppCompatActivity {
 
     private void setupComposeBottomSheet() {
         try {
-            // Use the Kotlin helper to set up the ComposeView properly
-            PaymentSheetJavaHelper.setupContent(composeBottomSheet, sdk);
+            JavaPaymentExpressConfigWrapper.setupExpressConfigBar(
+                expressConfigComposeView,
+                this::refreshBottomSheetCompose
+            );
+            refreshBottomSheetCompose();
             Log.d(TAG, "ComposeView setup completed with SpreedlyBottomSheet");
         } catch (Exception e) {
             Log.e(TAG, "Failed to setup ComposeView", e);
             Toast.makeText(this, "Failed to setup bottom sheet: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void refreshBottomSheetCompose() {
+        JavaPaymentExpressConfigWrapper.setupBottomSheet(composeBottomSheet, sdk);
     }
 
     private void observeViewModelState() {

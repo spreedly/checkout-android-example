@@ -5,6 +5,82 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-03
+
+### Breaking Changes
+
+- **`SPLTextField`** (`hostedfields`) — **CARD** and **CVV** require non-null `sdk`; display follows `Spreedly.hostedCardDisplayState`. Removed composable parameters that duplicated SDK display state (`observeHostedCardDisplayState`, `hostedCardDisplayState`, `cardNumberFormat`, `cvvDisplayMasked`). Recompile consumers and pass `sdk` on every CARD/CVV field.
+- **`SPLTextField` Compose signature** (`hostedfields`) — new parameters (`trailingIcon`, `onFieldStateChange`, `onFocusChanged`, `enableAutofill`) change the Compose-generated method name. Recompile consumers against the new `hostedfields` AAR.
+- **`PaymentSheet`** (`paymentsheet`) — requires `sdk: Spreedly`; removed `hostedCardDisplayState` parameter (use SDK state only).
+- **`PaymentSheetConfig` data class** (`payments-core`) — new properties `enableAutofill` (`Boolean`, default `true`) and `cardNumberFormat` (`CardNumberFormat`, default `PRETTY`). Java callers using positional constructors or `copy()` must add the two new trailing arguments. Kotlin callers using named parameters are unaffected.
+- **`HostedFieldsJavaHelper` / `HostedFieldsForm`** (`hostedfields`) — removed `cardNumberFormat` from hosted-fields Java setup overloads and form content; CARD/CVV use `sdk` on `SPLTextField` for display.
+- **CVV recache result delivery** (`payments-core`) — Recache outcomes are delivered only on `recacheResultFlow` and from the `recachePaymentMethod` suspend return, not on `paymentResultFlow`. Removed `PaymentResult.isRecacheMirrorEvent()` and `PaymentResult.Completed.paymentMethodUpdatedAt`. Use `PaymentMethodResponse.paymentMethodUpdatedAt` from the recache `Result`. Matches iframe (separate `recache` vs `paymentMethod` events).
+- **`PaymentResult.Canceled`** (`payments-core`) — now a `data class` with optional `message: String?` and `paymentMethodType: String?` (both default `null`). Kotlin `when` branches must use `is PaymentResult.Canceled`. Emit sites must use `PaymentResult.Canceled()`. Java callers use `instanceof`. Binary-incompatible change; requires recompilation.
+- **`BraintreeAPMActivity.Companion.createIntent()`** (`braintree`) — removed; use `SpreedlyBraintreeAPMCheckout.present()` or `BraintreeAPMJavaHelper.presentCheckout()` instead.
+
+### Added
+
+- **Express core field copy** (`payments-core`, `paymentsheet`, `hostedfields`) — `PaymentSheetCoreFieldLabels` and `PaymentSheetCoreFieldCopyResolver` for optional card number, CVV, and expiration label and hint text on `SpreedlyBottomSheet` / `PaymentSheet` (iOS `DropInCoreFieldLabels` parity). `SPLTextField` supports custom hint text for express pass-through. Java: `PaymentSheetJavaHelper.createDefaultCoreFieldLabels()` and `setupContent` overloads with `coreFieldLabels`. Defaults unchanged when omitted.
+- **Iframe-style PAN display** (`payments-core`, `paymentsheet`, `hostedfields`) — `CardNumberFormat` (`PRETTY`, `PLAIN`, `MASKED`), `HostedCardDisplayState`, `Spreedly.hostedCardDisplayState` (observable Compose `State`), `setNumberFormat` (enum or iframe-style string aliases `prettyFormat` / `plainFormat` / `maskedFormat`), and `toggleMask` (coupled CARD + CVV). Mask control is merchant-owned UI outside the fields (iframe parity).
+- **Lifecycle mask overlay** (`hostedfields`) — `SPLTextField.forceMaskOnLifecycleStop` (default `true`): temporary visual mask on `ON_STOP` when PAN was revealed. Clipboard copy/cut disabled for CARD when revealed.
+- **`SPLTextField.onFieldStateChange` / `HostedFieldState`** (`hostedfields`) — typed merchant-safe field snapshots (`INPUT`, `FOCUS`, `BLUR`, `VALIDATION`, `PAN_MASK_CHANGED`): `cardScheme`, `numberLength`, `cvvLength` (digit counts only — no raw PAN/CVV), `isValid`, `isEmpty`, `isFocused`, `isPanMasked`, `iin`. Java: `HostedFieldStateListener` overloads on `HostedFieldsJavaHelper.setupContent`.
+- **`SPLTextField.onFocusChanged`** (`hostedfields`) — optional `((Boolean) -> Unit)?` for focus/blur callbacks.
+- **`SPLTextField.trailingIcon`** (`hostedfields`) — optional composable slot for CARD fields (e.g., card brand logo).
+- **`Spreedly.areAllFieldsValid(formFields)`** (`payments-core`) — aggregate validation gate over `FormFieldType` list. `@MainThread`.
+- **`Spreedly.getRegisteredFieldCount()`** (`payments-core`) — count of mounted hosted field instances for pay-button gating.
+- **`Spreedly.resetPaymentFormPreservingDisplayConfig()`** (`payments-core`) — clears payment field values and validation without resetting `hostedCardDisplayState` (preserves mask/format state).
+- **`EmailValidator`** (`payments-core`) — `isValid(email)` for merchant email fields (rejects single-label domains).
+- **`eligibleForCardUpdater`** — optional parameter on `createCreditCard` / `createPaymentMethod`; JSON key `eligible_for_card_updater` sent only when non-null.
+- **Hosted fields autofill** (`hostedfields`, `payments-core`) — `SPLTextField(enableAutofill = true)`, `HostedFieldsJavaHelper.setupContent(..., enableAutofill)`, `PaymentSheetConfig.enableAutofill`. CARD uses `KeyboardType.Number` when autofill is on (password keyboard suppresses OS autofill).
+- **`PaymentSheetDisplayConfig`** (`payments-core`) — express checkout display options (`enableAutofill`, `cardNumberFormat`). Optional `displayConfig` on `SpreedlyBottomSheet` and `PaymentSheet` (`null` falls back to `PaymentSheetConfig` via `PaymentSheetDisplayConfig.resolve`). Java: `PaymentSheetJavaHelper.createDefaultDisplayConfig()` and `setupContent` overloads with optional `displayConfig`.
+- **`HostedFieldState.iin`** (`hostedfields`) — merchant-safe IIN prefix on card field snapshots (iframe `inputProperties` parity); always computed when six or more digits are present.
+- **`HostedFieldState.panDisplayFormat` / `panDisplayPolicyMasked`** (`hostedfields`) — card-number snapshot of global display format and `panMasked` policy at emission time.
+- **`HostedFieldsJavaHelper.setupContentWithInspector`** (`hostedfields`) — Java setup with optional inspector slot; CARD/CVV-only field-state listener on the inspector path.
+- **`PaymentResult.Completed.paymentMethodType`** (`payments-core`) — optional field identifying the payment type (e.g., "paypal", "venmo") on successful Braintree APM flows.
+- **`PaymentResult.Completed.venmoUsername`** (`payments-core`) — optional Venmo username returned on successful Venmo payments.
+- **Braintree transaction status models** (`payments-core`) — `BraintreeLineItem`, `BraintreeShippingAddress`, and new fields on `TransactionStatus` (`enablePaylaterButton`, `billingAgreementDescription`, `lineItems`, `shippingAddress`, `locale`) for iFrame parity.
+- **Braintree PayPal vault & checkout_with_vault flows** (`braintree`) — `launchPayPal()` now builds `PayPalVaultRequest` or `PayPalCheckoutRequest` with billing agreement, shipping address, line items, and locale from the transaction status. `paypal_flow_type` values `checkout`, `vault`, and `checkout_with_vault` are all supported.
+- **Braintree PayPal device-data gating** (`braintree`) — device data collection is skipped for plain `checkout` flows (matching iFrame behavior). Vault and `checkout_with_vault` flows still collect device data.
+- **Braintree Venmo `multi_use` / `single_use` mapping** (`braintree`) — `venmo_flow_type` from the transaction status is mapped to `VenmoPaymentMethodUsage.MULTI_USE` or `SINGLE_USE`. `multi_use` also sets `shouldVault = true`.
+- **Braintree cancel messages** (`braintree`) — `PaymentResult.Canceled` now carries `message` (e.g., "User canceled PayPal payment") and `paymentMethodType` (e.g., "paypal", "venmo") on Braintree cancel events.
+- **`SpreedlyBraintreeAPMCheckout.inferPaymentType()`** (`braintree`) — public helper to determine `BraintreeAPMPaymentType` from a `TransactionStatus.paymentMethodType` string, with Java-friendly helper in `BraintreeAPMJavaHelper`.
+- **Client token 24h validation** (`braintree`) — `present()` now validates that the Braintree client token (`createdAt`) is within 24 hours and rejects stale tokens with `PaymentResult.Failed`.
+- **Payment type mismatch validation** (`braintree`) — `present()` checks that the config's `paymentType` matches the transaction's `paymentMethodType` and fails early on mismatch.
+- **Recache accessors and helpers** (`payments-core`) — `PaymentMethodTransactionTypes.RECACHE_SENSITIVE_DATA`, `PaymentMethodResponse.paymentMethodUpdatedAt`, `PaymentMethodResponse.recacheToken`.
+- **Stripe APM PaymentSheet appearance** (`stripe`) — optional `StripeAPMAppearanceConfig` on `SpreedlyStripeAPMCheckout.present(config, activity, appearance)` and `StripeAPMJavaHelper.presentCheckout(config, activity, appearance)` maps to Stripe `PaymentSheet.Appearance`. See `docs/development/STRIPE_22_8_APPEARANCE_FIELD_MATRIX.md`.
+- **Stripe Radar module** (`stripe-radar`) — device data collection for fraud detection via Stripe Radar sessions. See `docs/guides/stripe-radar.md`.
+- **Legacy iframe migration guide** — `docs/guides/migration/from-legacy.md` with iframe-to-Android mapping tables.
+
+### Deprecated
+
+- **`PaymentSheetConfig.enableAutofill` / `cardNumberFormat`** (`payments-core`) — use `PaymentSheetDisplayConfig` on express checkout composables instead. Deprecated properties remain for this release (binary compatible).
+
+### Changed
+
+- **PAN/CVV display transforms** (`hostedfields`) — `MASKED` and `PLAIN` use full-bullet display (iframe `maskedFormat` style); `PRETTY` keeps focus-based gradual reveal (not identical to iframe `prettyFormat` — see migration guide).
+- **MASKED PAN and CVV mask character** (`hostedfields`) — full-mask display now uses `*` instead of `•` for iframe parity. PRETTY gradual-reveal still uses bullets in `MaskedCardNumberVisualTransformation`.
+- **Hosted card display transitions** (`payments-core`) — `setNumberFormat(PRETTY)` unmasks the PAN only; **CVV mask is preserved** from the prior state (e.g. MASKED → PRETTY keeps CVV masked). `PLAIN` and `MASKED` still couple PAN and CVV (both unmasked or both masked). `toggleMask()` toggles between masked and plain. Default / full `resetPaymentState()` uses PRETTY with `panMasked = false` and `cvvDisplayMasked = false`; successful `createCreditCard` does not reset display.
+- **`resetPaymentState()` display reset** (`payments-core`) — Clears form values and resets `hostedCardDisplayState` to defaults. Re-apply `setNumberFormat` / `toggleMask` after reset if you use a non-default mask. See [migration guide](guides/migration/from-legacy.md#tokenization-reset-and-listeners).
+- **Post-tokenize hosted display** (`payments-core`, `paymentsheet`) — Successful `createCreditCard` and express sheet open call `resetPaymentFormPreservingDisplayConfig()` so `hostedCardDisplayState` (mask/format) is preserved. Full `resetPaymentState()` still clears display for merchant clean-slate resets.
+- **Express autofill** (`paymentsheet`) — autofill is controlled by `PaymentSheetDisplayConfig.enableAutofill` only; removed the in-sheet `showsAutofillToggle` QA switch from `PaymentSheet` / `SpreedlyBottomSheet`.
+- **`AppTextField`** (`payments-core`) — when `autofillContentType` is null, the field now sets autofill semantics to `ContentDataType.None` so the OS does not treat it as a generic autofillable text target (reduces unwanted autofill UI when autofill is intentionally off).
+- **`SpreedlyTheme.toPaymentSheetConfig()`** (`payments-core`) — documents and maps **colors only** for payment sheets; initial autofill / card-number format for express use `PaymentSheetDisplayConfig` or legacy `PaymentSheetConfig` fields when `displayConfig` is null.
+- **Default form colors in dark mode** — Built-in `SpreedlyTheme.Dark` is now selected automatically when no global theme is set. `setGlobalTheme(SpreedlyTheme.Default)` resets to that auto-switching behavior. Payment sheets and hosted fields no longer show white field backgrounds on dark system themes.
+- **Gateway-specific 3DS** (`threeds`) — Challenge and redirect polling now time out after **10 minutes** (previously 15 minutes). Braintree purchases that return `device_fingerprint` go straight to the challenge step when `challenge_url` or `challenge_form_embed_url` is on the status; if both are missing, the SDK returns **Challenge URL missing**. Device fingerprint completion is detected via status polling (up to ~10 seconds).
+- **Recache suspend return** (`payments-core`) — `recachePaymentMethod` returns `Result.Error` when `transaction.succeeded` is false (including some HTTP 200 failure bodies).
+
+### Fixed
+
+- **Braintree APM `client_token` expiry** (`braintree`) — Parse `transaction.context` for `client_token` and `created_at`; skip expiry when `created_at` is missing or unparseable so checkout is not blocked when status fields are only in context. Fixes HC-1480.
+- **Separate expiry month field** (`hostedfields`) — Month field no longer pads a lone `0` to `00`, so merchants can backspace and clear the field while typing. Live month input: digits only, max 2 characters, no zero-padding until autofill or payment submission. Months 10–12 can be typed digit-by-digit (e.g. `1` then `2` → `12`). Fixes HC-1508.
+- **Validation param revalidation** (`payments-core`, `hostedfields`) — Enabling `allowExpiredDate` (or `allowBlankDate`) now clears stale expiry errors on separate month/year fields without requiring another keystroke. Fixes HC-1508.
+- **Recache optional CVV** (`payments-core`, `paymentsheet`) — ROUTEX, UATP, and Tarjeta D recache now accept empty or 1–3 digit numeric CVV (hosted-fields parity). Rejects 4+ digits on optional cards. Fixes HC-1506 / HC-1504.
+- **Recache Confirm button** (`paymentsheet`) — Confirm stays disabled until CVV passes card-type validation (not merely non-empty).
+- **Separate expiry fields card scan** (`hostedfields`) — YY year field now keeps the last two digits when autofill supplies a four-digit year (e.g. `2030` → `30`). Single-digit months from scan are zero-padded (e.g. `4` → `04`). Fixes HC-1505.
+- **Optional CVV submit validation** (`hostedfields`) — `SPLTextField` re-publishes CVV validation when the card scheme changes so ROUTEX / Tarjeta D / UATP cards accept empty CVV. Fixes HC-1496.
+- **Expiry autofill** (`hostedfields`) — card scan and Wallet autofill values such as `06/30`, `06/2030`, and compact `0630` are parsed into `EXPIRY_DATE` (MMYY) and separate month/year fields; combined values route to the peer field.
+- **Global theme on hosted fields** (`hostedfields`, `paymentsheet`) — `SPLTextField` and `PaymentSheet` re-read `GlobalThemeManager` when the global theme changes instead of caching an empty config in `remember(config)`.
+
 ## [1.0.1] - 2026-05-08
 
 ### Added
@@ -24,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.14.1] - 2026-04-30
 
 ### Fixed
+
+- **Braintree APM client_token expiry** (`braintree`) -- Parse `transaction.context` for `client_token` and `created_at`; skip expiry when `created_at` is missing or unparseable so checkout is not blocked when status fields are only in context (HC-1480).
 
 - **Apache-2.0 LICENSE in published artifacts** -- each AAR now embeds `META-INF/LICENSE` inside `classes.jar`, ensuring compliance with Apache 2.0 Section 4 distribution requirements.
 
@@ -262,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > `checkout-threeds`. Merchants need to add `com.spreedly:checkout-threeds` for 3DS support.
 > See [README.md](../README.md) for current integration instructions.
 
-### 🚨 BREAKING CHANGES
+### Breaking Changes
 
 This release introduces a new multi-module publishing structure that replaces the single fat AAR. This is a **breaking change** that requires dependency updates.
 
@@ -283,40 +361,40 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
 
 ### Added
 
-- 📦 **Multi-Module Publishing**: SDK now published as three separate modules
+- **Multi-Module Publishing**: SDK now published as three separate modules
     - `checkout-payments-core`: Core payment processing, API client, and 3DS support
     - `checkout-hostedfields`: Secure individual payment field components
     - `checkout-paymentsheet`: Pre-built payment sheet UI
-- 🔗 **Proper Dependency Management**: Transitive dependencies (Ktor, Compose) now correctly exposed via `api` scope
-- 📚 **Bundled Core Modules**: All internal core modules now bundled into `payments-core` for cleaner architecture
+- **Proper Dependency Management**: Transitive dependencies (Ktor, Compose) now correctly exposed via `api` scope
+- **Bundled Core Modules**: All internal core modules now bundled into `payments-core` for cleaner architecture
 
 ### Changed
 
-- ⚡ **Artifact ID Change**: Changed from `checkout-android` to module-specific IDs
-- 🏗️ **Build System**: Replaced fat AAR with standard multi-module publishing
-- 📦 **Forter SDK**: Now required as explicit dependency (not bundled)
+- **Artifact ID Change**: Changed from `checkout-android` to module-specific IDs
+- **Build System**: Replaced fat AAR with standard multi-module publishing
+- **Forter SDK**: Now required as explicit dependency (not bundled)
 
 ### Fixed
 
-- 🐛 **Resources$NotFoundException**: Fixed string resource issues by properly bundling all resources into `payments-core`
-- 🔧 **NoClassDefFoundError**: Fixed Ktor dependency issues with proper `api` scope
-- 📦 **POM Generation**: Fixed dependency declarations in published POMs
+- **Resources$NotFoundException**: Fixed string resource issues by properly bundling all resources into `payments-core`
+- **NoClassDefFoundError**: Fixed Ktor dependency issues with proper `api` scope
+- **POM Generation**: Fixed dependency declarations in published POMs
 
 ### Removed
 
-- 🗑️ **Fat AAR**: Removed single fat AAR in favor of modular approach
-- 🗑️ **Bundled Forter**: Forter SDK no longer bundled, must be added explicitly
+- **Fat AAR**: Removed single fat AAR in favor of modular approach
+- **Bundled Forter**: Forter SDK no longer bundled, must be added explicitly
 
 ## [0.7.0] - 2024-12-30
 
 ### Added
 
-- 💾 **Save Card for Future Payments**: Added `shouldRetain` property to `PaymentResult.Completed` to indicate whether users want to save their payment method
+- **Save Card for Future Payments**: Added `shouldRetain` property to `PaymentResult.Completed` to indicate whether users want to save their payment method
     - New `retainOnSuccess` parameter in payment creation methods (`createPaymentMethod`, `createCreditCard`)
     - `SaveCardCheckbox` composable component for allowing users to opt-in to saving cards
     - Automatic extraction of `retained` value from API response to `PaymentResult`
     - Comprehensive documentation on secure token storage best practices
-- 🎯 **Focus Tracking Callback**: Added `onFocus` callback parameter to `SPLTextField` and `AppTextField`
+- **Focus Tracking Callback**: Added `onFocus` callback parameter to `SPLTextField` and `AppTextField`
     - Triggered when user taps into a field (field gains focus)
     - Enables custom focus management and field tracking
     - Complements existing `shouldFocus` parameter for complete focus control
@@ -324,49 +402,47 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
 
 ### Security
 
-- 🔒 **Payment Token Storage**: Added guidance on secure payment token storage using encrypted SharedPreferences and Android Keystore
+- **Payment Token Storage**: Added guidance on secure payment token storage using encrypted SharedPreferences and Android Keystore
 
 ## [0.0.3] - 2025-08-25
 
 ### Added
 
-- 🔧 **AuthService in App Module**: Added `AuthService` class in app module to handle authentication
+- **AuthService in App Module**: Added `AuthService` class in app module to handle authentication
   parameter retrieval from backend
-- ♿ **Accessibility Enhancements**: Enhanced UI components with comprehensive accessibility support
+- **Accessibility Enhancements**: Enhanced UI components with comprehensive accessibility support
     - Added content descriptions for all interactive elements
     - Implemented semantic properties for screen readers
     - Improved navigation and focus management
 
 ### Changed
 
-- 🔄 **BREAKING CHANGE**: SDK initialization now requires authentication parameters to be fetched by
+- **BREAKING CHANGE**: SDK initialization now requires authentication parameters to be fetched by
   the app
     - Removed `suspend fun init(environmentKey: String, config: PaymentSheetConfig)` from SDK
     - Apps must now implement their own `AuthService` to fetch auth parameters from backend
     - Updated all example activities to use new initialization pattern
     - Updated `SpreedlyHelper.initializeSdkWithRemoteAuth()` to handle auth parameter fetching
 
-### Deprecated
-
 ### Removed
 
-- ❌ **AuthParamsService**: Removed from SDK core - authentication API calls now handled by app layer
-- ❌ **Suspend init method**: Removed `suspend fun init(environmentKey, config)` - replaced with
+- **AuthParamsService**: Removed from SDK core - authentication API calls now handled by app layer
+- **Suspend init method**: Removed `suspend fun init(environmentKey, config)` - replaced with
   explicit auth parameter passing
-- ❌ **Auth-related tests**: Removed SDK tests for authentication parameter fetching since it's now
+- **Auth-related tests**: Removed SDK tests for authentication parameter fetching since it's now
   app responsibility
 
 ### Fixed
 
-- 🐛 **Card Number Visual Transformation**: Fixed cursor positioning bug in card number formatting
+- **Card Number Visual Transformation**: Fixed cursor positioning bug in card number formatting
     - Resolved crash when typing 4th digit in unknown card types
     - Improved offset mapping for dynamic card number formatting
     - Enhanced handling of space positions in formatted card numbers
-- 🎨 **Code Formatting**: Applied trailing comma formatting in SPLTextField component
+- **Code Formatting**: Applied trailing comma formatting in SPLTextField component
 
 ### Security
 
-- 🔒 **Improved Security**: Authentication parameters are now fetched by the app, giving developers
+- **Improved Security**: Authentication parameters are now fetched by the app, giving developers
   full control over the authentication flow
 
 ## [0.0.1] - 2025-08-08
@@ -376,10 +452,10 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
 
 ### Added
 
-- 🎉 **Initial Release** of Spreedly Android SDK
-- 💳 **Core Payment Processing** with secure tokenization
-- 🎨 **Modern UI Components** built with Jetpack Compose
-- 🏗️ **Modular Architecture** with separate modules:
+- **Initial Release** of Spreedly Android SDK
+- **Core Payment Processing** with secure tokenization
+- **Modern UI Components** built with Jetpack Compose
+- **Modular Architecture** with separate modules:
     - `payments-core`: Core payment processing (includes analytics, networking, validation, result types, security, and UI)
     - `paymentsheet`: Pre-built payment sheet UI components
     - `hostedfields`: Secure payment field components
@@ -389,19 +465,19 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
 
 ### Features
 
-- ✅ **Secure Payment Field Components**
+- **Secure Payment Field Components**
     - Card number validation with real-time formatting
     - Expiry date validation (month/year)
     - CVV validation with card type detection
     - Address field validation
 
-- ✅ **Payment Sheet Integration**
+- **Payment Sheet Integration**
     - Bottom sheet payment form
     - Inline payment forms
     - Customizable styling and theming
     - Support for additional billing fields
 
-- ✅ **Form Validation**
+- **Form Validation**
     - Real-time validation feedback
     - Comprehensive validator classes:
         - `CardNumberValidator`: Validates card numbers with Luhn algorithm
@@ -411,33 +487,33 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
         - `ExpiryDateValidator`: Validates expiry date formats
         - `RequiredValidator`: Validates required fields
 
-- ✅ **Network Layer**
+- **Network Layer**
     - Ktor-based HTTP client
     - Robust error handling
     - Request/response logging
     - Timeout configuration
 
-- ✅ **Security Features**
+- **Security Features**
     - Secure tokenization of payment data
     - PCI-compliant payment field handling
     - Data encryption utilities
 
 ### Technical Features
 
-- 🔧 **Build System**
+- **Build System**
     - Gradle Kotlin DSL with convention plugins
     - Multi-module architecture
     - Build flavors (development/production)
     - Version catalog for dependency management
 
-- 🧪 **Testing & Quality**
+- **Testing & Quality**
     - Comprehensive unit test coverage
     - Code coverage reporting with Kover
     - Lint checks with ktlint and Android Lint
     - Compose-specific lint checks (Slack compose-lint-checks)
     - Automated code formatting with Spotless
 
-- 🚀 **CI/CD Pipeline**
+- **CI/CD Pipeline**
     - GitHub Actions workflows for CI/CD
     - Automated testing and building
     - Code quality checks with coverage reporting
@@ -446,19 +522,21 @@ implementation("com.spreedly:checkout-paymentsheet:0.7.1")
 
 ### Developer Experience
 
-- 📖 **Documentation**
+- **Documentation**
     - Comprehensive README with integration guides
     - API documentation
     - Code examples and usage patterns
     - Workflow documentation
 
-- 🛠️ **Development Tools**
+- **Development Tools**
     - Custom lint checks and rules
     - Code generation scripts
     - Coverage report generation
     - Local development setup scripts
 
 ### Installation
+
+> **Note**: This snippet reflects the original 0.0.1 single-module artifact. See `README.md` for current multi-module installation (0.7.1+).
 
 ```kotlin
 // In settings.gradle.kts
@@ -479,11 +557,9 @@ dependencyResolutionManagement {
     }
 }
 
-// In app/build.gradle.kts
+// In app/build.gradle.kts (OBSOLETE — see README.md for current dependencies)
 dependencies {
-    implementation("com.spreedly:checkout-android:0.0.1") {
-        exclude(group = "checkout-android-sdk.core")
-    }
+    implementation("com.spreedly:checkout-android:0.0.1")
 }
 ```
 

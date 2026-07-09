@@ -76,6 +76,10 @@ You're using real card numbers in a test environment.
 - `config` parameter overrides the global theme. If you pass `PaymentSheetConfig()` with all defaults, the global theme fills in. Explicit colors take precedence.
 - `PaymentSheetConfig.fromTheme()` must be called inside a `@Composable` function to access `MaterialTheme` colors.
 
+### Express autofill or initial card format ignored
+
+- **`sdk.setConfig(PaymentSheetConfig(...))`** does not by itself change express **autofill** or **initial `CardNumberFormat`** on the payment sheet UI. Those come from **`PaymentSheetDisplayConfig`** (or legacy **`PaymentSheetConfig`** when **`displayConfig`** is null) on **`SpreedlyBottomSheet`** / **`PaymentSheet`**, resolved when the composable runs.
+
 ### Form resets unexpectedly
 
 The bottom sheet clears form state each time it opens, unless `sdk.shouldPreserveState()` is configured. This is by design for fresh payment sessions.

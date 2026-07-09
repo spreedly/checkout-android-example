@@ -88,7 +88,7 @@ class PaymentResultHandlerTest {
                 onCanceled = { canceled = true },
             )
 
-            resultFlow.emit(PaymentResult.Canceled)
+            resultFlow.emit(PaymentResult.Canceled())
             assertTrue(canceled)
             job.cancel()
         }

@@ -2,14 +2,17 @@ package com.spreedly.example.screens.stripeapmpayment
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,14 +25,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,6 +77,26 @@ fun StripeAPMPaymentScreen(
     val selectedApmTypes by viewModel.selectedApmTypes.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val successMessage by viewModel.successMessage.collectAsStateWithLifecycle()
+    val radarEnabled by viewModel.radarEnabled.collectAsStateWithLifecycle()
+    val radarState by viewModel.radarState.collectAsStateWithLifecycle()
+    val radarSessionId by viewModel.radarSessionId.collectAsStateWithLifecycle()
+
+    val controlsEnabled = stage == StripeAPMPaymentViewModel.Stage.IDLE
+
+    var useCustomAppearance by rememberSaveable { mutableStateOf(true) }
+    var appearancePrimaryArgb by rememberSaveable {
+        mutableIntStateOf(DefaultStripeApmPrimaryColor.toArgb())
+    }
+    var appearanceBackgroundArgb by rememberSaveable {
+        mutableIntStateOf(DefaultStripeApmBackgroundColor.toArgb())
+    }
+    var appearanceButtonBackgroundArgb by rememberSaveable {
+        mutableIntStateOf(DefaultStripeApmPrimaryColor.toArgb())
+    }
+    var appearanceButtonTextArgb by rememberSaveable {
+        mutableIntStateOf(Color.White.toArgb())
+    }
+    var appearanceCornerRadius by rememberSaveable { mutableFloatStateOf(10f) }
 
     // onResume handling for Stripe APM checkout is done in MainActivity.onResume() via
     // SpreedlyStripeAPMCheckout.finalizeIfActive() to avoid LifecycleOwner registration
@@ -114,6 +147,15 @@ fun StripeAPMPaymentScreen(
                         },
                     )
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    RadarToggleRow(
+                        enabled = radarEnabled,
+                        radarState = radarState,
+                        radarSessionId = radarSessionId,
+                        onToggle = viewModel::toggleRadar,
+                    )
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
@@ -127,7 +169,25 @@ fun StripeAPMPaymentScreen(
                         selectedProviders = selectedApmTypes,
                         getLabel = { it.displayName },
                         onProviderToggled = viewModel::toggleApmType,
-                        enabled = stage == StripeAPMPaymentViewModel.Stage.IDLE,
+                        enabled = controlsEnabled,
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    StripeAPMAppearanceSection(
+                        useCustomAppearance = useCustomAppearance,
+                        onUseCustomAppearanceChange = { useCustomAppearance = it },
+                        primaryColor = Color(appearancePrimaryArgb),
+                        onPrimaryColorChange = { appearancePrimaryArgb = it.toArgb() },
+                        backgroundColor = Color(appearanceBackgroundArgb),
+                        onBackgroundColorChange = { appearanceBackgroundArgb = it.toArgb() },
+                        buttonBackgroundColor = Color(appearanceButtonBackgroundArgb),
+                        onButtonBackgroundColorChange = { appearanceButtonBackgroundArgb = it.toArgb() },
+                        buttonTextColor = Color(appearanceButtonTextArgb),
+                        onButtonTextColorChange = { appearanceButtonTextArgb = it.toArgb() },
+                        cornerRadiusDp = appearanceCornerRadius,
+                        onCornerRadiusDpChange = { appearanceCornerRadius = it },
+                        enabled = controlsEnabled,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -162,7 +222,15 @@ fun StripeAPMPaymentScreen(
                         onClick = {
                             val activity = context as? Activity
                             if (activity != null) {
-                                viewModel.startPayment(activity)
+                                val appearance = buildStripeAppearanceConfig(
+                                    useCustomAppearance = useCustomAppearance,
+                                    primaryColor = Color(appearancePrimaryArgb),
+                                    backgroundColor = Color(appearanceBackgroundArgb),
+                                    buttonBackgroundColor = Color(appearanceButtonBackgroundArgb),
+                                    buttonTextColor = Color(appearanceButtonTextArgb),
+                                    cornerRadiusDp = appearanceCornerRadius,
+                                )
+                                viewModel.startPayment(activity, appearance)
                             }
                         },
                         modifier = Modifier
@@ -210,6 +278,69 @@ fun StripeAPMPaymentScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarToggleRow(
+    enabled: Boolean,
+    radarState: StripeAPMPaymentViewModel.RadarState,
+    radarSessionId: String?,
+    onToggle: (Boolean) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "Stripe Radar",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
+
+        if (enabled) {
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                when (radarState) {
+                    StripeAPMPaymentViewModel.RadarState.IDLE -> {}
+                    StripeAPMPaymentViewModel.RadarState.COLLECTING -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 1.5.dp,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Collecting device data...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    StripeAPMPaymentViewModel.RadarState.SUCCESS -> {
+                        Text(
+                            text = radarSessionId ?: "",
+                            style = MaterialTheme.typography.labelSmall
+                                .copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    StripeAPMPaymentViewModel.RadarState.FAILED -> {
+                        Text(
+                            text = "Collection failed -- payment will proceed without Radar",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
             }

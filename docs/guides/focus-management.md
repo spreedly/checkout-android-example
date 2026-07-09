@@ -6,6 +6,10 @@ The Spreedly Android SDK provides programmatic focus control for text fields thr
 
 The parameter defaults to `false`, so existing integrations require no changes.
 
+**CARD and CVV fields** require the same `sdk: Spreedly` instance passed to `SPLTextField` (hosted display follows `sdk.hostedCardDisplayState`). Examples below include `sdk = sdk` on CARD/CVV fields.
+
+**Focus vs blur:** `SPLTextField` exposes `onFocus` when the field **gains** focus, and `onFocusChanged(Boolean)?` when focus **enters or leaves** the field (blur is `false`). Prefer `onFocusChanged` if you need blur-aware UI (e.g. hiding ancillary widgets). Internal `SpreedlyEvent.HostedFieldInteraction` telemetry is **not** a supported merchant API unless product documents otherwise.
+
 Key capabilities:
 
 - **Programmatic focus control** from parent components or external frameworks
@@ -30,10 +34,11 @@ Key capabilities:
 ```kotlin
 import androidx.compose.runtime.*
 import com.spreedly.hostedfields.ui.SPLTextField
+import com.spreedly.sdk.Spreedly
 import com.spreedly.sdk.models.FormFieldType
 
 @Composable
-fun PaymentForm() {
+fun PaymentForm(sdk: Spreedly) {
     var cardNumber by remember { mutableStateOf("") }
     var cvv by remember { mutableStateOf("") }
     var focusedField by remember { mutableStateOf<String?>(null) }
@@ -41,6 +46,7 @@ fun PaymentForm() {
     Column {
         SPLTextField(
             formFieldType = FormFieldType.CARD(),
+            sdk = sdk,
             label = "Card Number",
             value = cardNumber,
             onChange = { cardNumber = it },
@@ -49,6 +55,7 @@ fun PaymentForm() {
 
         SPLTextField(
             formFieldType = FormFieldType.CVV(),
+            sdk = sdk,
             label = "CVV",
             value = cvv,
             onChange = { cvv = it },
@@ -70,7 +77,7 @@ enum class PaymentFieldType {
 }
 
 @Composable
-fun PaymentFormWithAutoFocus() {
+fun PaymentFormWithAutoFocus(sdk: Spreedly) {
     var fullName by remember { mutableStateOf("") }
     var cardNumber by remember { mutableStateOf("") }
     var expiryMonth by remember { mutableStateOf("") }
@@ -115,6 +122,7 @@ fun PaymentFormWithAutoFocus() {
 
         SPLTextField(
             formFieldType = FormFieldType.CARD(),
+            sdk = sdk,
             label = "Card Number",
             value = cardNumber,
             onChange = { cardNumber = it },
@@ -137,6 +145,7 @@ fun PaymentFormWithAutoFocus() {
 
         SPLTextField(
             formFieldType = FormFieldType.CVV(),
+            sdk = sdk,
             label = "CVV",
             value = cvv,
             onChange = { cvv = it },
@@ -161,12 +170,14 @@ fun focusField(fieldName: String) {
 
 @Composable
 fun ReactNativePaymentForm(
+    sdk: Spreedly,
     focusedField: State<String?>
 ) {
     var cardNumber by remember { mutableStateOf("") }
 
     SPLTextField(
         formFieldType = FormFieldType.CARD(),
+        sdk = sdk,
         label = "Card Number",
         value = cardNumber,
         onChange = { cardNumber = it },
@@ -179,7 +190,7 @@ fun ReactNativePaymentForm(
 
 ```kotlin
 @Composable
-fun SmartPaymentForm() {
+fun SmartPaymentForm(sdk: Spreedly) {
     var cardNumber by remember { mutableStateOf("") }
     var cvv by remember { mutableStateOf("") }
 
@@ -199,6 +210,7 @@ fun SmartPaymentForm() {
     Column {
         SPLTextField(
             formFieldType = FormFieldType.CARD(),
+            sdk = sdk,
             label = "Card Number",
             value = cardNumber,
             onChange = { cardNumber = it },
@@ -208,6 +220,7 @@ fun SmartPaymentForm() {
 
         SPLTextField(
             formFieldType = FormFieldType.CVV(),
+            sdk = sdk,
             label = "CVV",
             value = cvv,
             onChange = { cvv = it },
@@ -247,15 +260,21 @@ fun SPLTextField(
     onValidationChange: ((Boolean) -> Unit)? = null,
     shouldFocus: Boolean = false,
     onFocus: (() -> Unit)? = null,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
+    onFieldStateChange: ((com.spreedly.hostedfields.models.HostedFieldState) -> Unit)? = null,
+    sdk: Spreedly? = null,
 )
 ```
 
-`formFieldType` and `onChange` are required. `FormFieldType` is located at `com.spreedly.sdk.models.FormFieldType`.
+`formFieldType` and `onChange` are required. **`sdk` is required for CARD and CVV** fields (optional for other types). `FormFieldType` is located at `com.spreedly.sdk.models.FormFieldType`.
 
 | Parameter | Description |
 |---|---|
+| `sdk` | Required for **CARD** and **CVV** — display follows `sdk.hostedCardDisplayState`. Optional for other field types. |
 | `shouldFocus` | When `true`, the field programmatically requests focus. Useful for external focus control from React Native or dynamic focus management. |
 | `onFocus` | Callback invoked when the field gains focus (e.g., user taps the field). Use this to track which field is currently active. |
+| `onFocusChanged` | Optional callback when focus **enters or leaves** the field (`true` = focused, `false` = blurred). Prefer this over `onFocus` when you need blur-aware UI. Same **`1.1.0`** minor as `onFieldStateChange` / `HostedFieldState`. |
+| `onFieldStateChange` | Optional **`HostedFieldState`** stream (`INPUT`, `FOCUS`, `BLUR`, `VALIDATION`, `PAN_MASK_CHANGED`) with `cardScheme`, digit counts, **`iin`** (IIN prefix only), `isPanMasked`, and `isValid` — merchant-safe; **no** raw PAN/CVV. |
 
 ### AppTextField
 
@@ -269,11 +288,12 @@ fun AppTextField(
     modifier: Modifier = Modifier,
     // ... other parameters ...
     shouldFocus: Boolean = false,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
     onFocus: (() -> Unit)? = null,
 )
 ```
 
-`shouldFocus` and `onFocus` behave the same as on `SPLTextField`. `SPLTextField` passes these through to `AppTextField` internally.
+`shouldFocus`, `onFocusChanged`, and `onFocus` behave the same as on `SPLTextField`. `SPLTextField` passes these through to `AppTextField` internally.
 
 ### Focus Tracking with onFocus
 
@@ -281,7 +301,7 @@ The `onFocus` callback lets you track when users tap into fields:
 
 ```kotlin
 @Composable
-fun PaymentFormWithTracking() {
+fun PaymentFormWithTracking(sdk: Spreedly) {
     var currentField by remember { mutableStateOf<FormFieldType?>(null) }
     var cardNumber by remember { mutableStateOf("") }
     var cvv by remember { mutableStateOf("") }
@@ -289,6 +309,7 @@ fun PaymentFormWithTracking() {
     Column {
         SPLTextField(
             formFieldType = FormFieldType.CARD(true),
+            sdk = sdk,
             label = "Card Number",
             value = cardNumber,
             onChange = { cardNumber = it },
@@ -299,6 +320,7 @@ fun PaymentFormWithTracking() {
 
         SPLTextField(
             formFieldType = FormFieldType.CVV(true),
+            sdk = sdk,
             label = "CVV",
             value = cvv,
             onChange = { cvv = it },
@@ -319,13 +341,14 @@ Use both parameters for complete focus control — programmatic focus plus user-
 
 ```kotlin
 @Composable
-fun SmartFocusForm() {
+fun SmartFocusForm(sdk: Spreedly) {
     var focusedField by remember {
         mutableStateOf<FormFieldType?>(FormFieldType.CARD(true))
     }
 
     SPLTextField(
         formFieldType = FormFieldType.CARD(true),
+        sdk = sdk,
         onChange = { },
         label = "Card Number",
         shouldFocus = focusedField == FormFieldType.CARD(true),
@@ -337,6 +360,7 @@ fun SmartFocusForm() {
 
     SPLTextField(
         formFieldType = FormFieldType.CVV(true),
+        sdk = sdk,
         onChange = { },
         label = "CVV",
         shouldFocus = focusedField == FormFieldType.CVV(true),
@@ -356,6 +380,7 @@ var focusedField by remember { mutableStateOf<String?>(null) }
 
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     onChange = { },
     shouldFocus = focusedField == "thisField"
 )
@@ -371,11 +396,13 @@ val focusedField = remember { mutableStateOf<String?>("cardNumber") }
 
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     onChange = { },
     shouldFocus = focusedField.value == "cardNumber"
 )
 SPLTextField(
     formFieldType = FormFieldType.CVV(),
+    sdk = sdk,
     onChange = { },
     shouldFocus = focusedField.value == "cvv"
 )
@@ -388,6 +415,7 @@ Use `onValidationChange` to auto-advance focus when a field becomes valid:
 ```kotlin
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     value = cardNumber,
     onChange = { cardNumber = it },
     onValidationChange = { valid ->
@@ -420,6 +448,7 @@ fun submitForm() {
 ```kotlin
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     value = cardNumber,
     onChange = { cardNumber = it },
     imeAction = ImeAction.Next,
@@ -435,6 +464,7 @@ Focus control is independent of theme configuration. See the [Theme and Styling]
 ```kotlin
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     onChange = { },
     config = CustomFieldsConfig(
         primaryColor = Color.Blue,
@@ -485,6 +515,7 @@ var shouldFocus by remember { mutableStateOf(false) }
 
 SPLTextField(
     formFieldType = FormFieldType.CARD(),
+    sdk = sdk,
     onChange = { },
     shouldFocus = shouldFocus
 )

@@ -11,8 +11,10 @@ import com.spreedly.example.models.SavedPaymentMethod
 import com.spreedly.example.repository.PaymentMethodRepository
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
+import com.spreedly.result.Result
 import com.spreedly.sdk.SpreedlyErrorMessages
 import com.spreedly.sdk.Spreedly
+import com.spreedly.sdk.models.paymentMethodUpdatedAt
 import com.spreedly.sdk.models.RecacheConfig
 import com.spreedly.sdk.models.SavedCardInfo
 import com.spreedly.sdk.models.ScreenPresentationMode
@@ -202,22 +204,19 @@ class CheckoutWithAdditionalFieldsViewModel(private val context: Context) : View
                 )
 
                 when (val recacheResult = result) {
-                    is com.spreedly.result.Result.Success -> {
+                    is Result.Success -> {
                         val response = recacheResult.data
-                        if (response.transaction.succeeded) {
-                            _token.value = response.transaction.paymentMethod.token
-                            Log.d(TAG,
-                                "CheckoutWithAdditionalFieldsViewModel: " +
+                        _token.value = response.transaction.paymentMethod.token
+                        Log.d(TAG,
+                            "CheckoutWithAdditionalFieldsViewModel: " +
                                 "Recached token: ${response.transaction.paymentMethod.token}",
-                            )
-
-                            // Call retain API after successful recache to refresh retention
-                            retainAfterRecache(response.transaction.paymentMethod.token)
-                        } else {
-                            snackbarHostState.showSnackbar("Recaching failed: ${response.transaction.message}")
-                        }
+                        )
+                        snackbarHostState.showSnackbar(
+                            "CVV updated. Updated at: ${response.paymentMethodUpdatedAt}",
+                        )
+                        retainAfterRecache(response.transaction.paymentMethod.token)
                     }
-                    is com.spreedly.result.Result.Error -> {
+                    is Result.Error -> {
                         // Don't show error message if user cancelled
                         if (recacheResult.error != com.spreedly.sdk.SpreedlyNetworkError.USER_CANCELLED) {
                             val errorMessage = SpreedlyErrorMessages.getUserFriendlyMessage(

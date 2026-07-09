@@ -40,7 +40,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,9 +62,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.spreedly.example.ui.theme.Spacing
+import com.spreedly.example.ui.components.ThemeConfigurationCard
+import com.spreedly.example.ui.components.ThemeConfigurationStyle
 import com.spreedly.example.viewmodel.reusableBottomSheetPaymentViewModel
+import com.spreedly.example.qa.ExpressDisplayConfigBar
 import com.spreedly.paymentsheet.SpreedlyBottomSheet
+import com.spreedly.sdk.ui.CardNumberFormat
+import com.spreedly.sdk.ui.PaymentSheetDisplayConfig
 import com.spreedly.sdk.ui.ConfigurableFormField
 import com.spreedly.sdk.ui.NameFieldDisplayMode
 import com.spreedly.sdk.ui.OptionalFieldType
@@ -84,10 +91,39 @@ fun ReusableBottomSheetPaymentScreen(
     val isProcessing by viewModel.isProcessing.collectAsState()
     val paymentCount by viewModel.paymentCount.collectAsState()
     val tokenHistory by viewModel.tokenHistory.collectAsState()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
+    val selectedThemePreset by viewModel.selectedThemePreset.collectAsState()
+    val isDarkMode = isSystemInDarkTheme()
+    val defaultPaymentSheetConfig =
+        PaymentSheetConfig(
+            primaryColor = MaterialTheme.colorScheme.tertiary,
+            fieldBackgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            formBackgroundColor = MaterialTheme.colorScheme.surface,
+        )
+    val paymentSheetConfig =
+        remember(useCustomTheme, selectedThemePreset, isDarkMode) {
+            viewModel.resolvePaymentSheetConfig(isDarkMode, defaultPaymentSheetConfig)
+        }
+
+    LaunchedEffect(useCustomTheme, selectedThemePreset, isDarkMode) {
+        viewModel.applyThemeToSdk(isDarkMode)
+    }
 
     var allowBlankName by rememberSaveable { mutableStateOf(false) }
     var allowBlankDate by rememberSaveable { mutableStateOf(false) }
     var allowExpiredDate by rememberSaveable { mutableStateOf(false) }
+    var sheetEnableAutofill by rememberSaveable { mutableStateOf(true) }
+    var sheetUseMaskedFormat by rememberSaveable { mutableStateOf(false) }
+    val sheetDisplayConfig =
+        PaymentSheetDisplayConfig(
+            enableAutofill = sheetEnableAutofill,
+            cardNumberFormat =
+                if (sheetUseMaskedFormat) {
+                    CardNumberFormat.MASKED
+                } else {
+                    CardNumberFormat.PRETTY
+                },
+        )
 
     LaunchedEffect(allowBlankName) {
         if (!isInitializing) {
@@ -201,6 +237,19 @@ fun ReusableBottomSheetPaymentScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 16.dp),
+            )
+
+            ThemeConfigurationCard(
+                useCustomTheme = useCustomTheme,
+                selectedPreset = selectedThemePreset,
+                onUseCustomThemeChange = viewModel::setUseCustomTheme,
+                onPresetSelected = viewModel::setThemePreset,
+                onResetTheme = viewModel::resetThemeConfiguration,
+                style = ThemeConfigurationStyle.BUTTON,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
             )
 
             // Payment Counter
@@ -788,6 +837,38 @@ fun ReusableBottomSheetPaymentScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Display Options",
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                    ),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+            ) {
+                ExpressDisplayConfigBar(
+                    enableAutofill = sheetEnableAutofill,
+                    onEnableAutofillChange = { sheetEnableAutofill = it },
+                    useMaskedFormat = sheetUseMaskedFormat,
+                    onUseMaskedFormatChange = { sheetUseMaskedFormat = it },
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Emergency close button if bottom sheet is stuck open
@@ -886,11 +967,8 @@ fun ReusableBottomSheetPaymentScreen(
 
         SpreedlyBottomSheet(
             sdk = sdk,
-            config = PaymentSheetConfig(
-                primaryColor = MaterialTheme.colorScheme.tertiary,
-                fieldBackgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                formBackgroundColor = MaterialTheme.colorScheme.surface,
-            ),
+            config = paymentSheetConfig,
+            displayConfig = sheetDisplayConfig,
             nameFieldDisplayMode = NameFieldDisplayMode.SEPARATE_FIELDS,
             allowBlankName = allowBlankName,
             allowBlankDate = allowBlankDate,

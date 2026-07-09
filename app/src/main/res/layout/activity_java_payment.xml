@@ -261,6 +261,12 @@
 
         </androidx.cardview.widget.CardView>
 
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/java_express_config_compose_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp" />
+
         <!-- Compose Bottom Sheet Container -->
         <androidx.compose.ui.platform.ComposeView
             android:id="@+id/java_compose_bottom_sheet"
