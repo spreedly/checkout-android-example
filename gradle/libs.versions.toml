@@ -205,7 +205,7 @@ datadog-logs = { group = "com.datadoghq", name = "dd-sdk-android-logs", version.
 #     url = uri("https://mobile-sdks.forter.com/android")
 #     credentials {
 #         username = "forter-android-sdk"
-#         password = "HvYumAfjVQYQFyoGsmNAefGdR84Esqig"
+#         password = "<from Forter portal or settings.gradle.kts defaults>"
 #     }
 # }
 forter-sdk = { group = "com.forter.mobile", name = "forter3ds", version.ref = "forter3ds" }
