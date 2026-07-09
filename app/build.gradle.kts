@@ -127,6 +127,12 @@ android {
             excludes += "META-INF/NOTICE.md"
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {
