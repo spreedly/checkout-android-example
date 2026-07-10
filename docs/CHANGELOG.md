@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2026-06-03
 
+> **ACH is not included in this release.** Version **1.1.0** ships card tokenization, CVV recache, Braintree/Stripe APM, and gateway-specific 3DS only. Bank-account APIs (`SpreedlyBankAccountBottomSheet`, `BankAccountSheet`, `createBankAccount`, etc.) may exist in the repository for internal QA — **merchants must not integrate ACH on 1.1.0**. ACH will be announced under a new version header when it completes QA.
+
 ### Breaking Changes
 
 - **`SPLTextField`** (`hostedfields`) — **CARD** and **CVV** require non-null `sdk`; display follows `Spreedly.hostedCardDisplayState`. Removed composable parameters that duplicated SDK display state (`observeHostedCardDisplayState`, `hostedCardDisplayState`, `cardNumberFormat`, `cvvDisplayMasked`). Recompile consumers and pass `sdk` on every CARD/CVV field.
