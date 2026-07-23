@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
@@ -37,33 +36,44 @@ import androidx.compose.material3.SnackbarDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.spreedly.app.R
 import com.spreedly.example.ui.theme.Spacing
+import com.spreedly.example.viewmodel.findActivityOrNull
 import com.spreedly.hostedfields.ui.SPLTextField
 import com.spreedly.sdk.AdditionalField
 import com.spreedly.sdk.models.BankAccountHolderType
 import com.spreedly.sdk.models.BankAccountType
 import com.spreedly.sdk.models.FormFieldType
+import com.spreedly.sdk.ui.BankAccountFieldConfig
+import com.spreedly.sdk.ui.CustomFieldsConfig
 import com.spreedly.sdk.ui.NameFieldDisplayMode
 import com.spreedly.sdk.ui.PaymentProcessingResult
+import com.spreedly.sdk.ui.achCombinedNameLengthErrorMessage
+import com.spreedly.sdk.ui.isAchAccountNumberFieldValid
+import com.spreedly.sdk.ui.resolveAchTextFieldImeAction
+import com.spreedly.sdk.ui.resolveBankAccountNameErrorMessage
 import com.spreedly.security.secureScreen
 import com.spreedly.ui.molecules.AppTextField
+import com.spreedly.ui.theme.resolveColor
+import com.spreedly.ui.theme.resolveEffectiveCustomFieldsConfig
 import com.spreedly.ui.theme.spreedlySegmentedButtonColors
+import com.spreedly.validation.SpreedlyParamsManager
+import com.spreedly.validation.validators.NameValidator
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 
@@ -83,24 +93,110 @@ fun HeadlessBankAccountScreen(
     val paymentFinished by viewModel.paymentFinished.collectAsState()
     val fieldConfig by viewModel.fieldConfig.collectAsState()
     val uiConfig by viewModel.uiConfig.collectAsState()
+    val bankAccountState by sdk.bankAccountState
+    val resolvedConfig = resolveEffectiveCustomFieldsConfig(uiConfig)
 
-    var accountHolderName by rememberSaveable { mutableStateOf("") }
-    var nameError by rememberSaveable { mutableStateOf<String?>(null) }
+    var accountHolderName by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf<String?>(null) }
     var accountType by remember { mutableStateOf(BankAccountType.CHECKING) }
     var accountHolderType by remember { mutableStateOf(BankAccountHolderType.PERSONAL) }
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var lastName by rememberSaveable { mutableStateOf("") }
-    var firstNameError by rememberSaveable { mutableStateOf<String?>(null) }
-    var lastNameError by rememberSaveable { mutableStateOf<String?>(null) }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var firstNameError by remember { mutableStateOf<String?>(null) }
+    var lastNameError by remember { mutableStateOf<String?>(null) }
+    var bankName by remember { mutableStateOf("") }
+    var bankNameError by remember { mutableStateOf<String?>(null) }
+
+    var routingNumberIsValid by remember { mutableStateOf(false) }
+    var accountNumberIsValid by remember { mutableStateOf(false) }
+    var fullNameIsValid by remember { mutableStateOf(false) }
+    var firstNameIsValid by remember { mutableStateOf(false) }
+    var lastNameIsValid by remember { mutableStateOf(false) }
+    var bankNameIsValid by remember { mutableStateOf(true) }
+
+    fun clearLocalBankAccountFields() {
+        accountHolderName = ""
+        nameError = null
+        firstName = ""
+        lastName = ""
+        firstNameError = null
+        lastNameError = null
+        bankName = ""
+        bankNameError = null
+        accountType = BankAccountType.CHECKING
+        accountHolderType = BankAccountHolderType.PERSONAL
+        routingNumberIsValid = false
+        accountNumberIsValid = false
+        fullNameIsValid = false
+        firstNameIsValid = false
+        lastNameIsValid = false
+        bankNameIsValid = true
+    }
+
+    val allowBlankName = SpreedlyParamsManager.allowBlankName
+
+    val lastSyncedFieldConfig = remember { HeadlessFieldConfigSyncHolder() }
+    SideEffect {
+        if (lastSyncedFieldConfig.config != fieldConfig) {
+            sdk.setBankAccountFieldConfig(fieldConfig)
+            lastSyncedFieldConfig.config = fieldConfig
+        }
+    }
+
+    val activity = LocalContext.current.findActivityOrNull()
+    DisposableEffect(Unit) {
+        onDispose {
+            if (activity?.isChangingConfigurations != true) {
+                clearLocalBankAccountFields()
+                viewModel.markLocalFieldsClearPending()
+                sdk.resetBankAccountState()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (viewModel.consumeLocalFieldsClearPending()) {
+            clearLocalBankAccountFields()
+        } else {
+            accountHolderName = bankAccountState.accountHolderName.value
+            firstName = bankAccountState.firstName.value
+            lastName = bankAccountState.lastName.value
+            bankName = bankAccountState.bankName.value
+            accountType = bankAccountState.accountType
+            accountHolderType = bankAccountState.accountHolderType
+        }
+    }
+
+    LaunchedEffect(
+        accountHolderName,
+        firstName,
+        lastName,
+        bankName,
+        fieldConfig,
+        allowBlankName,
+        bankAccountState.routingNumber.value,
+        bankAccountState.accountNumber.value,
+    ) {
+        val nameValidity = headlessAchNameValidity(
+            accountHolderName = accountHolderName,
+            firstName = firstName,
+            lastName = lastName,
+            bankName = bankName,
+            showBankName = fieldConfig.showBankName,
+            bankNameRequired = fieldConfig.bankNameRequired,
+            allowBlankName = allowBlankName,
+        )
+        fullNameIsValid = nameValidity.fullNameIsValid
+        firstNameIsValid = nameValidity.firstNameIsValid
+        lastNameIsValid = nameValidity.lastNameIsValid
+        bankNameIsValid = nameValidity.bankNameIsValid
+        routingNumberIsValid = bankAccountState.routingNumber.isValid
+        accountNumberIsValid = isAchAccountNumberFieldValid(bankAccountState.accountNumber.value)
+    }
 
     LaunchedEffect(paymentFinished) {
         if (paymentFinished) {
-            accountHolderName = ""
-            nameError = null
-            firstName = ""
-            lastName = ""
-            firstNameError = null
-            lastNameError = null
+            clearLocalBankAccountFields()
             sdk.resetBankAccountState()
             viewModel.resetPaymentFinished()
             navController.popBackStack()
@@ -114,33 +210,124 @@ fun HeadlessBankAccountScreen(
 
     val nameRequiredError = stringResource(R.string.headless_bank_account_holder_name_required)
     val nameMinLengthError = stringResource(R.string.headless_bank_account_holder_name_min_length)
+    val nameTooLongError = stringResource(R.string.headless_bank_account_holder_name_too_long)
     val validationFailedMsg = stringResource(R.string.headless_bank_account_validation_failed)
     val processingErrorMsg = stringResource(R.string.headless_bank_account_error)
 
-    fun validateName(): Boolean {
-        return when (fieldConfig.nameDisplayMode) {
-            NameFieldDisplayMode.SINGLE_FIELD -> {
-                nameError = when {
-                    accountHolderName.isBlank() -> nameRequiredError
-                    accountHolderName.length < 2 -> nameMinLengthError
-                    else -> null
-                }
-                nameError == null
-            }
-            NameFieldDisplayMode.SEPARATE_FIELDS -> {
-                firstNameError = if (firstName.isBlank()) nameRequiredError else null
-                lastNameError = if (lastName.isBlank()) nameRequiredError else null
-                firstNameError == null && lastNameError == null
-            }
-        }
+    fun hasFieldsAfterName(): Boolean {
+        return fieldConfig.showBankName || fieldConfig.showAccountType || fieldConfig.showAccountHolderType
     }
 
-    fun isFormFilledOut(): Boolean {
-        return when (fieldConfig.nameDisplayMode) {
-            NameFieldDisplayMode.SINGLE_FIELD -> accountHolderName.isNotBlank() && accountHolderName.length >= 2
-            NameFieldDisplayMode.SEPARATE_FIELDS -> firstName.isNotBlank() && lastName.isNotBlank()
-        }
+    fun nameValidationError(validator: NameValidator): String? {
+        return validator.resolveBankAccountNameErrorMessage(
+            isValidationForced = true,
+            requiredMessage = nameRequiredError,
+            tooShortMessage = nameMinLengthError,
+            tooLongMessage = nameTooLongError,
+        )
     }
+
+    fun updateAccountHolderName(value: String) {
+        accountHolderName = value
+        sdk.bankAccountCallbacks.onAccountHolderNameChange(value)
+        val validator = NameValidator(value, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH)
+        nameError = nameValidationError(validator)
+        fullNameIsValid = headlessAchNameValidity(
+            accountHolderName = value,
+            firstName = firstName,
+            lastName = lastName,
+            bankName = bankName,
+            showBankName = fieldConfig.showBankName,
+            bankNameRequired = fieldConfig.bankNameRequired,
+            allowBlankName = allowBlankName,
+        ).fullNameIsValid
+    }
+
+    fun updateFirstName(value: String) {
+        firstName = value
+        sdk.bankAccountCallbacks.onFirstNameChange(value)
+        val validator = NameValidator(value, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH)
+        val combinedError = achCombinedNameLengthErrorMessage()
+        firstNameError = combinedError ?: nameValidationError(validator)
+        lastNameError = combinedError
+            ?: nameValidationError(NameValidator(lastName, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH))
+        val nameValidity = headlessAchNameValidity(
+            accountHolderName = accountHolderName,
+            firstName = value,
+            lastName = lastName,
+            bankName = bankName,
+            showBankName = fieldConfig.showBankName,
+            bankNameRequired = fieldConfig.bankNameRequired,
+            allowBlankName = allowBlankName,
+        )
+        firstNameIsValid = nameValidity.firstNameIsValid
+        lastNameIsValid = nameValidity.lastNameIsValid
+    }
+
+    fun updateLastName(value: String) {
+        lastName = value
+        sdk.bankAccountCallbacks.onLastNameChange(value)
+        val validator = NameValidator(value, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH)
+        val combinedError = achCombinedNameLengthErrorMessage()
+        lastNameError = combinedError ?: nameValidationError(validator)
+        firstNameError = combinedError
+            ?: nameValidationError(NameValidator(firstName, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH))
+        val nameValidity = headlessAchNameValidity(
+            accountHolderName = accountHolderName,
+            firstName = firstName,
+            lastName = value,
+            bankName = bankName,
+            showBankName = fieldConfig.showBankName,
+            bankNameRequired = fieldConfig.bankNameRequired,
+            allowBlankName = allowBlankName,
+        )
+        firstNameIsValid = nameValidity.firstNameIsValid
+        lastNameIsValid = nameValidity.lastNameIsValid
+    }
+
+    fun updateBankName(value: String) {
+        bankName = value
+        sdk.bankAccountCallbacks.onBankNameChange(value, fieldConfig.bankNameRequired)
+        if (!fieldConfig.showBankName) {
+            bankNameError = null
+            bankNameIsValid = true
+            return
+        }
+        if (!fieldConfig.bankNameRequired) {
+            bankNameError = null
+            bankNameIsValid = true
+            return
+        }
+        val validator = NameValidator(value, isPure = false, minLength = NameValidator.ACH_MIN_LENGTH)
+        bankNameError = validator.resolveBankAccountNameErrorMessage(
+            isValidationForced = true,
+            requiredMessage = nameRequiredError,
+            tooShortMessage = nameMinLengthError,
+            tooLongMessage = nameTooLongError,
+            requireNonBlank = true,
+        )
+        bankNameIsValid = headlessAchNameValidity(
+            accountHolderName = accountHolderName,
+            firstName = firstName,
+            lastName = lastName,
+            bankName = value,
+            showBankName = fieldConfig.showBankName,
+            bankNameRequired = fieldConfig.bankNameRequired,
+            allowBlankName = allowBlankName,
+        ).bankNameIsValid
+    }
+
+    val isFormValid = routingNumberIsValid &&
+        accountNumberIsValid &&
+        when (fieldConfig.nameDisplayMode) {
+            NameFieldDisplayMode.SINGLE_FIELD -> fullNameIsValid
+            NameFieldDisplayMode.SEPARATE_FIELDS -> firstNameIsValid && lastNameIsValid
+        } &&
+        if (fieldConfig.showBankName && fieldConfig.bankNameRequired) {
+            bankNameIsValid
+        } else {
+            true
+        }
 
     Scaffold(
         snackbarHost = {
@@ -244,8 +431,9 @@ fun HeadlessBankAccountScreen(
                         label = stringResource(com.spreedly.paymentsheet.R.string.bank_account_routing_number_label),
                         formFieldType = FormFieldType.ROUTING_NUMBER(required = true),
                         config = uiConfig,
-                        value = sdk.bankAccountState.value.routingNumber.value,
+                        value = bankAccountState.routingNumber.value,
                         onChange = { sdk.bankAccountCallbacks.onRoutingNumberChange(it, true) },
+                        onValidationChange = { routingNumberIsValid = it },
                     )
 
                     Spacer(modifier = Modifier.height(Spacing.sm))
@@ -254,8 +442,9 @@ fun HeadlessBankAccountScreen(
                         label = stringResource(com.spreedly.paymentsheet.R.string.bank_account_account_number_label),
                         formFieldType = FormFieldType.ACCOUNT_NUMBER(required = true),
                         config = uiConfig,
-                        value = sdk.bankAccountState.value.accountNumber.value,
+                        value = bankAccountState.accountNumber.value,
                         onChange = { sdk.bankAccountCallbacks.onAccountNumberChange(it, true) },
+                        onValidationChange = { accountNumberIsValid = it },
                     )
 
                     Spacer(modifier = Modifier.height(Spacing.lg))
@@ -271,28 +460,26 @@ fun HeadlessBankAccountScreen(
                             .padding(bottom = Spacing.sm),
                     )
 
-                    val fieldShape = RoundedCornerShape(uiConfig.borderRadius)
+                    val fieldShape = resolvedConfig.fieldShape
 
                     when (fieldConfig.nameDisplayMode) {
                         NameFieldDisplayMode.SINGLE_FIELD -> {
                             AppTextField(
                                 label = stringResource(R.string.headless_bank_account_holder_name_label),
                                 value = accountHolderName,
-                                onValueChange = { accountHolderName = it },
+                                onValueChange = { updateAccountHolderName(it) },
                                 hint = "",
                                 isRequired = true,
                                 error = nameError,
-                                backgroundColor = uiConfig.fieldBackgroundColor,
-                                focusedBorderColor = uiConfig.primaryColor,
-                                unfocusedBorderColor = uiConfig.formBorderColor,
-                                labelColor = uiConfig.fieldLabelColor,
-                                textColor = uiConfig.textColor,
+                                backgroundColor = resolvedConfig.fieldBackgroundColor,
+                                focusedBorderColor = resolvedConfig.primaryColor,
+                                unfocusedBorderColor = resolvedConfig.formBorderColor,
+                                labelColor = resolvedConfig.fieldLabelColor,
+                                placeholderColor = resolvedConfig.placeholderColor,
+                                textColor = resolvedConfig.textColor,
                                 shape = fieldShape,
-                                imeAction = if (!fieldConfig.showAccountType && !fieldConfig.showAccountHolderType) {
-                                    ImeAction.Done
-                                } else {
-                                    ImeAction.Default
-                                },
+                                imeAction = resolveAchTextFieldImeAction(hasFieldsAfterName()),
+                                maxLength = NameValidator.MAX_LENGTH,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -301,15 +488,16 @@ fun HeadlessBankAccountScreen(
                                 AppTextField(
                                     label = stringResource(R.string.headless_bank_account_first_name_label),
                                     value = firstName,
-                                    onValueChange = { firstName = it },
+                                    onValueChange = { updateFirstName(it) },
                                     hint = "",
                                     isRequired = true,
                                     error = firstNameError,
-                                    backgroundColor = uiConfig.fieldBackgroundColor,
-                                    focusedBorderColor = uiConfig.primaryColor,
-                                    unfocusedBorderColor = uiConfig.formBorderColor,
-                                    labelColor = uiConfig.fieldLabelColor,
-                                    textColor = uiConfig.textColor,
+                                    backgroundColor = resolvedConfig.fieldBackgroundColor,
+                                    focusedBorderColor = resolvedConfig.primaryColor,
+                                    unfocusedBorderColor = resolvedConfig.formBorderColor,
+                                    labelColor = resolvedConfig.fieldLabelColor,
+                                    placeholderColor = resolvedConfig.placeholderColor,
+                                    textColor = resolvedConfig.textColor,
                                     shape = fieldShape,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -317,20 +505,48 @@ fun HeadlessBankAccountScreen(
                                 AppTextField(
                                     label = stringResource(R.string.headless_bank_account_last_name_label),
                                     value = lastName,
-                                    onValueChange = { lastName = it },
+                                    onValueChange = { updateLastName(it) },
                                     hint = "",
                                     isRequired = true,
                                     error = lastNameError,
-                                    backgroundColor = uiConfig.fieldBackgroundColor,
-                                    focusedBorderColor = uiConfig.primaryColor,
-                                    unfocusedBorderColor = uiConfig.formBorderColor,
-                                    labelColor = uiConfig.fieldLabelColor,
-                                    textColor = uiConfig.textColor,
+                                    backgroundColor = resolvedConfig.fieldBackgroundColor,
+                                    focusedBorderColor = resolvedConfig.primaryColor,
+                                    unfocusedBorderColor = resolvedConfig.formBorderColor,
+                                    labelColor = resolvedConfig.fieldLabelColor,
+                                    placeholderColor = resolvedConfig.placeholderColor,
+                                    textColor = resolvedConfig.textColor,
                                     shape = fieldShape,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
                         }
+                    }
+
+                    if (fieldConfig.showBankName) {
+                        Spacer(modifier = Modifier.height(Spacing.md))
+
+                        val bankNameLabel = fieldConfig.bankNameLabel
+                            ?: stringResource(R.string.headless_bank_account_bank_name_label)
+                        AppTextField(
+                            label = bankNameLabel,
+                            value = bankName,
+                            onValueChange = { updateBankName(it) },
+                            hint = "",
+                            isRequired = fieldConfig.bankNameRequired,
+                            error = bankNameError,
+                            backgroundColor = resolvedConfig.fieldBackgroundColor,
+                            focusedBorderColor = resolvedConfig.primaryColor,
+                            unfocusedBorderColor = resolvedConfig.formBorderColor,
+                            labelColor = resolvedConfig.fieldLabelColor,
+                            placeholderColor = resolvedConfig.placeholderColor,
+                            textColor = resolvedConfig.textColor,
+                            shape = fieldShape,
+                            imeAction = resolveAchTextFieldImeAction(
+                                fieldConfig.showAccountType || fieldConfig.showAccountHolderType,
+                            ),
+                            maxLength = NameValidator.MAX_LENGTH,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
 
                     if (fieldConfig.showAccountType) {
@@ -349,7 +565,7 @@ fun HeadlessBankAccountScreen(
                             BankAccountType.CHECKING to stringResource(R.string.headless_bank_account_checking),
                             BankAccountType.SAVINGS to stringResource(R.string.headless_bank_account_savings),
                         )
-                        val segmentedColors = spreedlySegmentedButtonColors(uiConfig.primaryColor)
+                        val segmentedColors = spreedlySegmentedButtonColors(resolvedConfig.primaryColor)
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                             accountTypes.forEachIndexed { index, type ->
                                 SegmentedButton(
@@ -383,7 +599,7 @@ fun HeadlessBankAccountScreen(
                             BankAccountHolderType.PERSONAL to stringResource(R.string.headless_bank_account_personal),
                             BankAccountHolderType.BUSINESS to stringResource(R.string.headless_bank_account_business),
                         )
-                        val holderSegmentedColors = spreedlySegmentedButtonColors(uiConfig.primaryColor)
+                        val holderSegmentedColors = spreedlySegmentedButtonColors(resolvedConfig.primaryColor)
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                             holderTypes.forEachIndexed { index, type ->
                                 SegmentedButton(
@@ -403,35 +619,31 @@ fun HeadlessBankAccountScreen(
 
                     Spacer(modifier = Modifier.height(Spacing.lg))
 
-                    val isButtonDisabled = isInitializing || isProcessing || !isFormFilledOut()
+                    val isButtonDisabled = isInitializing || isProcessing || !isFormValid
 
                     Button(
                         onClick = {
-                            if (validateName()) {
-                                coroutineScope.launch {
+                            if (!isFormValid) return@Button
+                            coroutineScope.launch {
                                     try {
                                         if (!viewModel.initializeForPayment()) return@launch
 
-                                        when (fieldConfig.nameDisplayMode) {
-                                            NameFieldDisplayMode.SINGLE_FIELD -> {
-                                                sdk.bankAccountCallbacks.onAccountHolderNameChange(accountHolderName)
-                                            }
-                                            NameFieldDisplayMode.SEPARATE_FIELDS -> {
-                                                sdk.bankAccountCallbacks.onFirstNameChange(firstName)
-                                                sdk.bankAccountCallbacks.onLastNameChange(lastName)
-                                            }
-                                        }
                                         sdk.bankAccountCallbacks.onAccountTypeChange(accountType)
                                         sdk.bankAccountCallbacks.onAccountHolderTypeChange(accountHolderType)
 
-                                        val additionalFields = when (fieldConfig.nameDisplayMode) {
-                                            NameFieldDisplayMode.SINGLE_FIELD -> mapOf(
-                                                AdditionalField.FULL_NAME to accountHolderName,
-                                            )
-                                            NameFieldDisplayMode.SEPARATE_FIELDS -> mapOf(
-                                                AdditionalField.FIRST_NAME to firstName,
-                                                AdditionalField.LAST_NAME to lastName,
-                                            )
+                                        val additionalFields = buildMap {
+                                            when (fieldConfig.nameDisplayMode) {
+                                                NameFieldDisplayMode.SINGLE_FIELD -> {
+                                                    put(AdditionalField.FULL_NAME, accountHolderName)
+                                                }
+                                                NameFieldDisplayMode.SEPARATE_FIELDS -> {
+                                                    put(AdditionalField.FIRST_NAME, firstName)
+                                                    put(AdditionalField.LAST_NAME, lastName)
+                                                }
+                                            }
+                                            if (fieldConfig.showBankName && bankName.isNotBlank()) {
+                                                put(AdditionalField.BANK_NAME, bankName)
+                                            }
                                         }
 
                                         val result = sdk.createBankAccount(
@@ -455,6 +667,13 @@ fun HeadlessBankAccountScreen(
                                                     withDismissAction = true,
                                                 )
                                             }
+                                            is PaymentProcessingResult.Rejected -> {
+                                                viewModel.setProcessing(false)
+                                            }
+                                            is PaymentProcessingResult.Failed -> {
+                                                viewModel.setProcessing(true)
+                                                viewModel.startPaymentPolling()
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         viewModel.setProcessing(false)
@@ -463,7 +682,6 @@ fun HeadlessBankAccountScreen(
                                             withDismissAction = true,
                                         )
                                     }
-                                }
                             }
                         },
                         modifier = Modifier
@@ -472,11 +690,10 @@ fun HeadlessBankAccountScreen(
                         enabled = !isButtonDisabled,
                         shape = MaterialTheme.shapes.medium,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (uiConfig.primaryColor != Color.Unspecified) {
-                                uiConfig.primaryColor
-                            } else {
-                                MaterialTheme.colorScheme.primary
-                            },
+                            containerColor = resolveColor(
+                                resolvedConfig.primaryColor,
+                                MaterialTheme.colorScheme.primary,
+                            ),
                             disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                         ),
                     ) {
@@ -496,7 +713,6 @@ fun HeadlessBankAccountScreen(
                                 text = when {
                                     isInitializing -> stringResource(R.string.headless_bank_account_initializing)
                                     isProcessing -> stringResource(R.string.headless_bank_account_processing)
-                                    !isFormFilledOut() -> stringResource(R.string.headless_bank_account_fill_fields)
                                     else -> stringResource(R.string.headless_bank_account_submit)
                                 },
                                 color = MaterialTheme.colorScheme.onPrimary,
@@ -526,5 +742,9 @@ fun HeadlessBankAccountScreen(
             }
         }
     }
+}
+
+private class HeadlessFieldConfigSyncHolder {
+    var config: BankAccountFieldConfig? = null
 }
 

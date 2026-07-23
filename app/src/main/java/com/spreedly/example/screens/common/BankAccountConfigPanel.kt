@@ -68,6 +68,8 @@ fun BankAccountConfigPanel(
     onFieldConfigChange: (BankAccountFieldConfig) -> Unit,
     uiConfig: CustomFieldsConfig,
     onUiConfigChange: (CustomFieldsConfig) -> Unit,
+    useCustomTheme: Boolean,
+    onUseCustomThemeChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isDark = isSystemInDarkTheme()
@@ -123,31 +125,6 @@ fun BankAccountConfigPanel(
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = Spacing.sm),
         )
-
-        val presets =
-            listOf(
-                stringResource(R.string.config_preset_default) to BankAccountFieldConfig.Default,
-                stringResource(R.string.config_preset_minimal) to BankAccountFieldConfig.Minimal,
-                stringResource(R.string.config_preset_full) to BankAccountFieldConfig.Full,
-            )
-        val selectedPreset =
-            presets.find { it.second == fieldConfig }?.first ?: "Default"
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            presets.forEachIndexed { index, (label, config) ->
-                SegmentedButton(
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = presets.size,
-                    ),
-                    onClick = { onFieldConfigChange(config) },
-                    selected = selectedPreset == label,
-                ) {
-                    Text(label)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(Spacing.md))
 
         Text(
             text = stringResource(R.string.config_name_display_mode),
@@ -232,90 +209,126 @@ fun BankAccountConfigPanel(
             modifier = Modifier.padding(bottom = Spacing.sm),
         )
 
-        Text(
-            text = stringResource(R.string.config_primary_color),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = Spacing.xxs),
-        )
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            primaryColors.forEach { color ->
-                ColorSwatch(
-                    color = color,
-                    selected = uiConfig.primaryColor == color,
-                    onClick = { onUiConfigChange(uiConfig.copy(primaryColor = color)) },
-                )
-            }
+            Text(
+                text = stringResource(R.string.config_use_custom_theme),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Switch(
+                checked = useCustomTheme,
+                onCheckedChange = onUseCustomThemeChange,
+            )
         }
 
-        Spacer(modifier = Modifier.height(Spacing.md))
+        if (useCustomTheme) {
+            Spacer(modifier = Modifier.height(Spacing.md))
 
-        Text(
-            text = stringResource(R.string.config_field_background),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = Spacing.xxs),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            fieldBackgroundColors.forEach { color ->
-                ColorSwatch(
-                    color = color,
-                    selected = uiConfig.fieldBackgroundColor == color,
-                    onClick = {
-                        val hasCustomBg = color != Color.Transparent
+            Text(
+                text = stringResource(R.string.config_primary_color),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = Spacing.xxs),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                primaryColors.forEach { color ->
+                    ColorSwatch(
+                        color = color,
+                        selected = uiConfig.primaryColor == color,
+                        onClick = { onUiConfigChange(uiConfig.copy(primaryColor = color)) },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            Text(
+                text = stringResource(R.string.config_field_background),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = Spacing.xxs),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            ) {
+                fieldBackgroundColors.forEach { color ->
+                    val fieldBackgroundValue =
+                        if (color == Color.Transparent) Color.Unspecified else color
+                    val isDefaultSwatch = color == Color.Transparent
+                    ColorSwatch(
+                        color = color,
+                        selected =
+                            if (isDefaultSwatch) {
+                                uiConfig.fieldBackgroundColor == Color.Unspecified
+                            } else {
+                                uiConfig.fieldBackgroundColor == fieldBackgroundValue
+                            },
+                        onClick = {
+                            val hasCustomBg = !isDefaultSwatch
+                            onUiConfigChange(
+                                uiConfig.copy(
+                                    fieldBackgroundColor = fieldBackgroundValue,
+                                    textColor = if (hasCustomBg && isDark) {
+                                        Color.White
+                                    } else if (hasCustomBg) {
+                                        Color.Black
+                                    } else {
+                                        Color.Unspecified
+                                    },
+                                    fieldLabelColor = if (hasCustomBg && isDark) {
+                                        Color.LightGray
+                                    } else if (hasCustomBg) {
+                                        Color.DarkGray
+                                    } else {
+                                        Color.Unspecified
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            Text(
+                text = stringResource(R.string.config_border_radius),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = Spacing.xxs),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Slider(
+                    modifier = Modifier.weight(1f),
+                    value = uiConfig.borderRadius.value,
+                    onValueChange = {
                         onUiConfigChange(
                             uiConfig.copy(
-                                fieldBackgroundColor = color,
-                                textColor = if (hasCustomBg && isDark) Color.White
-                                else if (hasCustomBg) Color.Black
-                                else Color.Unspecified,
-                                fieldLabelColor = if (hasCustomBg && isDark) Color.LightGray
-                                else if (hasCustomBg) Color.DarkGray
-                                else Color.Unspecified,
+                                borderRadius = it.dp,
+                                fieldShape = RoundedCornerShape(it.dp),
                             ),
                         )
                     },
+                    valueRange = 0f..24f,
+                )
+                Spacer(modifier = Modifier.size(Spacing.sm))
+                Text(
+                    text = "${uiConfig.borderRadius.value.toInt()}dp",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(Spacing.md))
-
-        Text(
-            text = stringResource(R.string.config_border_radius),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = Spacing.xxs),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Slider(
-                modifier = Modifier.weight(1f),
-                value = uiConfig.borderRadius.value,
-                onValueChange = {
-                    onUiConfigChange(
-                        uiConfig.copy(
-                            borderRadius = it.dp,
-                            fieldShape = RoundedCornerShape(it.dp),
-                        ),
-                    )
-                },
-                valueRange = 0f..24f,
-            )
-            Spacer(modifier = Modifier.size(Spacing.sm))
-            Text(
-                text = "${uiConfig.borderRadius.value.toInt()}dp",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -331,6 +344,8 @@ private fun BankAccountConfigPanelPreview() {
                     onFieldConfigChange = {},
                     uiConfig = CustomFieldsConfig.Default,
                     onUiConfigChange = {},
+                    useCustomTheme = false,
+                    onUseCustomThemeChange = {},
                 )
             }
         }

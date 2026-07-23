@@ -710,6 +710,10 @@ fun RecachingShowcaseScreen(
                                                         "check your information.",
                                                     )
                                             }
+
+                                            is PaymentProcessingResult.Rejected,
+                                            is PaymentProcessingResult.Failed,
+                                            -> Unit
                                         }
                                     } catch (e: Exception) {
                                         Log.d(

@@ -45,9 +45,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import com.spreedly.example.viewmodel.findActivityOrNull
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spreedly.app.R
@@ -77,13 +79,17 @@ fun BankAccountScreen(
     val showSheet by viewModel.showSheet.collectAsState()
     val fieldConfig by viewModel.fieldConfig.collectAsState()
     val uiConfig by viewModel.uiConfig.collectAsState()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    val activity = LocalContext.current.findActivityOrNull()
+    DisposableEffect(lifecycleOwner, showSheet) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
-                    if (showSheet) viewModel.onConfigurationChanging()
+                    if (showSheet && activity?.isChangingConfigurations == true) {
+                        viewModel.onConfigurationChanging()
+                    }
                 }
                 Lifecycle.Event.ON_START -> {
                     viewModel.onConfigurationChangeComplete()
@@ -187,6 +193,8 @@ fun BankAccountScreen(
                         onFieldConfigChange = { viewModel.updateFieldConfig(it) },
                         uiConfig = uiConfig,
                         onUiConfigChange = { viewModel.updateUiConfig(it) },
+                        useCustomTheme = useCustomTheme,
+                        onUseCustomThemeChange = { viewModel.updateUseCustomTheme(it) },
                     )
 
                     Spacer(modifier = Modifier.height(Spacing.lg))

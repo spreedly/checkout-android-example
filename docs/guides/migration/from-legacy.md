@@ -671,7 +671,7 @@ Complete checklist of SDK APIs available to merchants. Use this to confirm you'v
 | `forceMaskOnLifecycleStop` | Lifecycle mask overlay on `ON_STOP` (default `true`) |
 | `enableAutofill` | OS autofill hints (default `true`; set `false` for legacy `toggleAutoComplete` off) |
 | `imeAction` / `onImeAction` | IME "Next" / "Done" and keyboard submit |
-| `config: CustomFieldsConfig` | Per-field visual overrides (colors, borders) |
+| `config: CustomFieldsConfig` | Per-field visual overrides (colors, borders). On SDK resolution paths, `borderRadius` drives field corners — `fieldShape` is synced from `borderRadius` (set radius, not a mismatched shape). Use `resolveEffectiveCustomFieldsConfig()` for custom ACH layouts mixing `AppTextField` with `SPLTextField`. See [ACH Bank Account](../ach-bank-account.md#theme-resolution). |
 
 #### `HostedFieldState` properties (on `onFieldStateChange`)
 

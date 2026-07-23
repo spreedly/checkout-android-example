@@ -58,6 +58,7 @@ fun HeadlessBankAccountConfigScreen(
     val paymentToken by viewModel.paymentToken.collectAsState()
     val fieldConfig by viewModel.fieldConfig.collectAsState()
     val uiConfig by viewModel.uiConfig.collectAsState()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -132,6 +133,8 @@ fun HeadlessBankAccountConfigScreen(
                         onFieldConfigChange = { viewModel.updateFieldConfig(it) },
                         uiConfig = uiConfig,
                         onUiConfigChange = { viewModel.updateUiConfig(it) },
+                        useCustomTheme = useCustomTheme,
+                        onUseCustomThemeChange = { viewModel.updateUseCustomTheme(it) },
                     )
                 }
             }

@@ -101,6 +101,8 @@ fun SimpleInputField(
     isRequired: Boolean = false,
     isError: Boolean = false,
     errorMessage: String? = null,
+    placeholder: String? = null,
+    showLabel: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.Words,
     imeAction: ImeAction = ImeAction.Default,
@@ -117,18 +119,20 @@ fun SimpleInputField(
     val borderWidth = if (isFocused) 2.dp else 1.dp
 
     Column(modifier = modifier) {
-        Row(modifier = Modifier.padding(bottom = Spacing.xxs)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            )
-            if (isRequired) {
+        if (showLabel) {
+            Row(modifier = Modifier.padding(bottom = Spacing.xxs)) {
                 Text(
-                    text = "*",
+                    text = label,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 )
+                if (isRequired) {
+                    Text(
+                        text = "*",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
 
@@ -167,7 +171,7 @@ fun SimpleInputField(
                 Box {
                     if (value.isEmpty()) {
                         Text(
-                            text = "Enter $label",
+                            text = placeholder ?: "Enter $label",
                             style = TextStyle(
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -263,6 +267,9 @@ fun BasicCheckoutScreen(
                     viewModel.startPaymentPolling()
                 }
                 is PaymentProcessingResult.ValidationFailed -> Unit
+                is PaymentProcessingResult.Rejected,
+                is PaymentProcessingResult.Failed,
+                -> Unit
             }
         }
     }

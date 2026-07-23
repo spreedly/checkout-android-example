@@ -1,9 +1,9 @@
 package com.spreedly.example.ui.theme
 
-import com.spreedly.hostedfields.ui.toCustomFieldsConfig
 import com.spreedly.sdk.models.FormFieldType
 import com.spreedly.sdk.ui.CustomFieldsConfig
 import com.spreedly.ui.theme.SpreedlyTheme
+import com.spreedly.ui.theme.toCustomFieldsConfig
 
 object SplFieldConfigResolver {
     fun resolve(
