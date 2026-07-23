@@ -81,12 +81,17 @@ inline fun <reified VM : ViewModel> viewModelWithContextAndActivity(
  * Walks up the Context chain until an Activity is found.
  */
 fun Context.findActivity(): Activity {
+    return findActivityOrNull()
+        ?: throw IllegalStateException("Could not find Activity in Context chain")
+}
+
+fun Context.findActivityOrNull(): Activity? {
     var context = this
     while (context is ContextWrapper) {
         if (context is Activity) return context
         context = context.baseContext
     }
-    throw IllegalStateException("Could not find Activity in Context chain")
+    return null
 }
 
 @Composable
@@ -168,3 +173,4 @@ fun stripeAPMPaymentViewModel(): StripeAPMPaymentViewModel = viewModelWithContex
 fun braintreePaymentViewModel(): BraintreePaymentViewModel = viewModelWithContext { context ->
     BraintreePaymentViewModel(context)
 }
+

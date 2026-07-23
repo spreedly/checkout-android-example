@@ -301,6 +301,8 @@ SPLTextField(
 )
 ```
 
+Call `sdk.resetBankAccountState()` when the custom ACH form leaves composition (navigation back, dismiss), unless the Activity is changing configurations — then leave in-memory SDK state as-is. Do **not** call `preserveBankAccountStateOnNextShow()` from custom layouts; that latch is only for the drop-in bottom sheet open path. Prefer `BankAccountSheet(sdk, …)` from [ach-bank-account.md](ach-bank-account.md) when you want leave-clear built in.
+
 ### Bank Account Submission
 
 Use `sdk.createBankAccount()` instead of `sdk.createCreditCard()`:

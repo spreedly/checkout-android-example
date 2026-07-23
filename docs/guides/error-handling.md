@@ -29,6 +29,29 @@ data class Failed(
 )
 ```
 
+### ACH bank account failures
+
+`createBankAccount()` failures delivered on `paymentResultFlow` and drop-in `onPaymentResult` use an ACH-specific mapper:
+
+- `originalError` is always `null`
+- `rawErrorResponse` is always `null`
+- Only allowlisted validation field names are included
+- Error messages are sanitized and length-bounded
+
+Use `errorType`, `apiError`, `statusCode`, `message`, and `validationErrors` for merchant logging — not raw backend bodies. See [ACH Bank Account](ach-bank-account.md#handling-results).
+
+Immediate `createBankAccount()` return values:
+
+| Result | Meaning |
+|--------|---------|
+| `Processing` | Validation passed; API call started |
+| `ValidationFailed` | Client-side validation failed; form stays open |
+| `Rejected(ALREADY_PROCESSING)` | Another ACH operation owns this `Spreedly` instance; no network dispatch |
+| `Failed(UNEXPECTED_ERROR)` | Unexpected SDK error; sanitized `PaymentResult.Failed` follows async |
+
+ACH tokenization after validation runs to completion even when the merchant coroutine is cancelled; do not retry until a terminal is delivered. See [ACH Bank Account — cancellation and retry](ach-bank-account.md#cancellation-in-flight-tokenization-and-retry).
+
+
 ### SpreedlyApiError Types
 
 The SDK categorizes API errors into specific types:

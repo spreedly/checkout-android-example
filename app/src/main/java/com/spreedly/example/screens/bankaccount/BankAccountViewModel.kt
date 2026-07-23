@@ -42,6 +42,9 @@ class BankAccountViewModel(private val context: Context) : ViewModel() {
     private val _uiConfig = MutableStateFlow(CustomFieldsConfig())
     val uiConfig: StateFlow<CustomFieldsConfig> = _uiConfig.asStateFlow()
 
+    private val _useCustomTheme = MutableStateFlow(false)
+    val useCustomTheme: StateFlow<Boolean> = _useCustomTheme.asStateFlow()
+
     private val sdkSessionManager = SdkSessionManager(AuthService())
     private val paymentMethodRepository = PaymentMethodRepository(context)
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
@@ -137,7 +140,6 @@ class BankAccountViewModel(private val context: Context) : ViewModel() {
         _paymentToken.value = ""
         viewModelScope.launch {
             if (initializeForPayment()) {
-                _isProcessing.value = true
                 _showSheet.value = true
             }
         }
@@ -167,6 +169,13 @@ class BankAccountViewModel(private val context: Context) : ViewModel() {
 
     fun updateUiConfig(config: CustomFieldsConfig) {
         _uiConfig.value = config
+    }
+
+    fun updateUseCustomTheme(enabled: Boolean) {
+        _useCustomTheme.value = enabled
+        if (!enabled) {
+            _uiConfig.value = CustomFieldsConfig()
+        }
     }
 
     private companion object {

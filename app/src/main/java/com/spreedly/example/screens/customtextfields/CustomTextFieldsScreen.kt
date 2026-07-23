@@ -865,6 +865,10 @@ fun CustomTextFieldsScreen(
                                     is PaymentProcessingResult.ValidationFailed -> {
                                         Log.d(TAG, "Validation failed for fields: ${result.invalidFields}")
                                     }
+
+                                    is PaymentProcessingResult.Rejected,
+                                    is PaymentProcessingResult.Failed,
+                                    -> Unit
                                 }
                             }
                         },

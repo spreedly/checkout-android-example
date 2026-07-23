@@ -21,6 +21,7 @@ coreKtx = "1.17.0"                      # AndroidX Core KTX extensions
 appcompat = "1.7.1"                     # AndroidX AppCompat
 activity = "1.11.0"                     # AndroidX Activity
 browser = "1.9.0"                       # AndroidX Browser (Chrome Custom Tabs + Auth Tab)
+webkit = "1.12.1"                       # AndroidX WebKit
 cardview = "1.0.0"                      # AndroidX CardView
 constraintlayout = "2.2.1"              # AndroidX ConstraintLayout
 lifecycle = "2.9.4"                     # AndroidX Lifecycle (runtime, viewmodel, compose)
@@ -77,7 +78,7 @@ protobuf = "0.9.5"                      # Protobuf plugin
 firebaseAppDistribution = "5.1.1"       # Firebase App Distribution
 googleServices = "4.4.4"                # Google Services plugin
 datadog = "3.2.0"                       # Datadog monitoring SDK
-spreedlySdk = "1.1.0"                   # Spreedly SDK version
+spreedlySdk = "1.2.0"                   # Spreedly SDK version
 forter3ds = "2.0.4"
 stripe = "22.8.1"                        # Stripe Android SDK for APM (PaymentSheet) - Verify latest at https://github.com/stripe/stripe-android/releases
 braintree = "5.18.0"                    # Braintree Android SDK v5 for PayPal/Venmo - Verify latest at https://github.com/braintree/braintree_android/releases
@@ -95,6 +96,7 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 
@@ -200,14 +202,7 @@ datadog-logs = { group = "com.datadoghq", name = "dd-sdk-android-logs", version.
 # ----------------------------------------------------------------------------
 # 3DS Authentication (Optional)
 # ----------------------------------------------------------------------------
-# Note: Forter SDK requires adding their Maven repository to settings.gradle.kts or project build.gradle:
-# maven {
-#     url = uri("https://mobile-sdks.forter.com/android")
-#     credentials {
-#         username = "forter-android-sdk"
-#         password = "<from Forter portal or settings.gradle.kts defaults>"
-#     }
-# }
+# Note: Forter SDK requires their Maven repository in settings.gradle.kts — see docs/guides/3ds-global.md
 forter-sdk = { group = "com.forter.mobile", name = "forter3ds", version.ref = "forter3ds" }
 stripe-android = { group = "com.stripe", name = "stripe-android", version.ref = "stripe" }
 

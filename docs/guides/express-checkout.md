@@ -349,7 +349,7 @@ The bottom sheet auto-dismisses on `Completed`, `Canceled`, and API/network `Fai
 | `config` | `PaymentSheetConfig?` | `null` | Color and styling configuration. Falls back to global theme if null |
 | `displayConfig` | `PaymentSheetDisplayConfig?` | `null` | Express display (`enableAutofill`, initial `cardNumberFormat`). `null` reads legacy fields from the resolved `PaymentSheetConfig` (same as 1.1.0). Non-null uses that object as-is (no field-level merge). iOS: `CardFormDropInDisplayConfig` |
 | `borderRadius` | `Dp` | `8.dp` | Corner radius for form elements |
-| `fieldShape` | `Shape` | `RoundedCornerShape(8.dp)` | Shape for input fields |
+| `fieldShape` | `Shape` | `RoundedCornerShape(8.dp)` | Shape for input fields. Independent of `borderRadius` on this API — set both explicitly if they must match. ACH `CustomFieldsConfig` resolution paths sync `fieldShape` from `borderRadius` instead; see [ACH Bank Account](ach-bank-account.md#theme-resolution). |
 | `nameFieldDisplayMode` | `NameFieldDisplayMode` | `SINGLE_FIELD` | How cardholder name is displayed |
 | `allowBlankName` | `Boolean` | `false` | Allow empty cardholder name |
 | `allowBlankDate` | `Boolean` | `false` | Allow empty expiration date |

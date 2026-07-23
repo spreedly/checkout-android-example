@@ -130,7 +130,7 @@ android {
 
     testOptions {
         unitTests {
-            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
         }
     }
 }
@@ -143,11 +143,11 @@ kotlin {
 
 dependencies {
     // ✅ Use paymentsheet which includes payments-core and hosted-fields
-    implementation("com.spreedly:checkout-paymentsheet:1.1.0")
-    implementation("com.spreedly:checkout-braintree-apm:1.1.0")
-    implementation("com.spreedly:checkout-stripe-apm:1.1.0")
-    implementation("com.spreedly:checkout-stripe-radar:1.1.0")
-    implementation("com.spreedly:checkout-threeds:1.1.0")
+    implementation("com.spreedly:checkout-paymentsheet:1.2.0")
+    implementation("com.spreedly:checkout-braintree-apm:1.2.0")
+    implementation("com.spreedly:checkout-stripe-apm:1.2.0")
+    implementation("com.spreedly:checkout-stripe-radar:1.2.0")
+    implementation("com.spreedly:checkout-threeds:1.2.0")
 
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
@@ -166,6 +166,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.material)
+
+    implementation(libs.androidx.browser)
 
     // Testing dependencies
     testImplementation(libs.junit)

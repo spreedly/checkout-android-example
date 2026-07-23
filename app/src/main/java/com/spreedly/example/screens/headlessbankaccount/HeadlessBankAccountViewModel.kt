@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class HeadlessBankAccountViewModel(private val context: Context) : ViewModel() {
     val sdk = Spreedly()
@@ -37,6 +38,8 @@ class HeadlessBankAccountViewModel(private val context: Context) : ViewModel() {
     private val _paymentFinished = MutableStateFlow(false)
     val paymentFinished: StateFlow<Boolean> = _paymentFinished.asStateFlow()
 
+    private val clearLocalFieldsOnNextEntry = AtomicBoolean(false)
+
     private var lastPaymentCompletedTime = 0L
 
     private val _fieldConfig = MutableStateFlow(BankAccountFieldConfig.Default)
@@ -44,6 +47,9 @@ class HeadlessBankAccountViewModel(private val context: Context) : ViewModel() {
 
     private val _uiConfig = MutableStateFlow(CustomFieldsConfig())
     val uiConfig: StateFlow<CustomFieldsConfig> = _uiConfig.asStateFlow()
+
+    private val _useCustomTheme = MutableStateFlow(false)
+    val useCustomTheme: StateFlow<Boolean> = _useCustomTheme.asStateFlow()
 
     private val sdkSessionManager = SdkSessionManager(AuthService())
     private val paymentMethodRepository = PaymentMethodRepository(context)
@@ -177,12 +183,26 @@ class HeadlessBankAccountViewModel(private val context: Context) : ViewModel() {
         _paymentFinished.value = false
     }
 
+    fun markLocalFieldsClearPending() {
+        clearLocalFieldsOnNextEntry.set(true)
+    }
+
+    fun consumeLocalFieldsClearPending(): Boolean =
+        clearLocalFieldsOnNextEntry.getAndSet(false)
+
     fun updateFieldConfig(config: BankAccountFieldConfig) {
         _fieldConfig.value = config
     }
 
     fun updateUiConfig(config: CustomFieldsConfig) {
         _uiConfig.value = config
+    }
+
+    fun updateUseCustomTheme(enabled: Boolean) {
+        _useCustomTheme.value = enabled
+        if (!enabled) {
+            _uiConfig.value = CustomFieldsConfig()
+        }
     }
 
     private companion object {

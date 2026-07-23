@@ -5,6 +5,23 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-22
+
+### Added
+
+- **ACH bank account tokenization** (`paymentsheet`, `payments-core`) — bank account payment support with a pre-built drop-in sheet, a custom-layout composable (`BankAccountSheet(sdk, …)`), and a headless `createBankAccount()` flow. Configure name display mode and optional bank-name / account-type fields via `Spreedly.setBankAccountFieldConfig` / `setBankAccountNameDisplayMode` (and matching `SpreedlyUIController` methods). Routing, account, and name fields validate to iOS parity; in-memory routing and account data is cleared on dismiss, cancel, and API/network failure (SEC-8709), while a configuration change preserves mid-edit values.
+- **`PaymentResult.Completed.paymentMethodType`** (`payments-core`) — tokenize success now reports the payment method type (e.g. `"bank_account"`) on `PaymentResult.Completed` from the payment method response.
+- **Shared theming helpers** (`payments-core`, `hostedfields`) — `resolveEffectiveCustomFieldsConfig()` and `SpreedlyTheme.toCustomFieldsConfig()` give card and ACH surfaces one theme → field-config mapping (global-theme merge, `fieldShape` synced from `borderRadius`).
+- **`CheckoutButton.isFormValid` / `AppTextField.maxLength` / `NameValidator` min length** (`payments-core`) — additive parameters; prior signatures retained via hidden compatibility overloads / `@JvmOverloads`.
+
+### Breaking
+
+- **`PaymentProcessingResult`** (`payments-core`) — adds `Rejected(ALREADY_PROCESSING)` and `Failed(UNEXPECTED_ERROR)`. `processPayment()` returns this sealed type, so exhaustive `when` expressions must handle the new branches (or add an `else`). Card flows never return the new values, but the type is shared.
+
+### Changed
+
+- **Express checkout guide** (`docs`) — clarifies that card sheet `borderRadius` and `fieldShape` are independent; ACH `CustomFieldsConfig` paths sync shape from radius.
+
 ## [1.1.0] - 2026-06-03
 
 ### Breaking Changes

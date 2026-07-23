@@ -101,6 +101,7 @@
     <string name="menu_item_braintree_payment_title">Braintree Payment</string>
     <string name="menu_item_braintree_payment_description">Braintree PayPal and Venmo payments with native SDK checkout flow</string>
 
+
     <string name="menu_item_java_offsite_title">Java Offsite Payment</string>
     <string name="menu_item_java_offsite_description">Java implementation of offsite payment flow (PayPal, Sprel) with Chrome Custom Tabs</string>
     
@@ -136,6 +137,7 @@
     <string name="headless_bank_account_holder_name_label">Account Holder Name</string>
     <string name="headless_bank_account_holder_name_required">Name is required</string>
     <string name="headless_bank_account_holder_name_min_length">Name must be at least 2 characters</string>
+    <string name="headless_bank_account_holder_name_too_long">Name must be at most 350 characters</string>
     <string name="headless_bank_account_section_secure">Bank Account Information (Secure)</string>
     <string name="headless_bank_account_section_personal">Account Details (Custom Handled)</string>
     <string name="headless_bank_account_account_type">Account Type</string>
@@ -160,11 +162,9 @@
     <string name="headless_bank_account_timeout">Payment processing timeout</string>
 
     <!-- Bank Account Config Panel -->
-    <string name="config_field_configuration">Field Configuration</string>
+    <string name="config_field_configuration">Configuration</string>
     <string name="config_name_display_mode">Name Display Mode</string>
-    <string name="config_preset_default">Default</string>
-    <string name="config_preset_minimal">Minimal</string>
-    <string name="config_preset_full">Full</string>
+    <string name="config_use_custom_theme">Use Custom Theme</string>
     <string name="config_name_full">Full Name</string>
     <string name="config_name_separate">First + Last</string>
     <string name="config_show_bank_name">Show Bank Name</string>
