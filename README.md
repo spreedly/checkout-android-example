@@ -24,6 +24,7 @@ implementation("com.spreedly:checkout-paymentsheet:1.3.0")
 implementation("com.spreedly:checkout-braintree-apm:1.3.0")
 implementation("com.spreedly:checkout-stripe-apm:1.3.0")
 implementation("com.spreedly:checkout-threeds:1.3.0")
+implementation("com.spreedly:checkout-clicktopay:1.3.0")
 ```
 
 ## SDK Documentation
