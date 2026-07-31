@@ -435,6 +435,25 @@ Button(
                     "custom_name" to nameInput.value,
                     "custom_address" to addressInput.value,
                 ),
+                // Optional. Forwarded verbatim to Spreedly at `payment_method.mandate`;
+                // omitted from the request when null or empty. Nested objects, arrays,
+                // numbers, and booleans are preserved. Spreedly owns the schema and
+                // validates it: `source_version` is "1.0", and rules are generated
+                // server-side from `raw_mandate` -- do not send a `rules` array.
+                mandate = mapOf(
+                    "source" to "acp",
+                    "source_version" to "1.0",
+                    "valid_from" to "2026-07-21T00:00:00Z",
+                    "valid_until" to "2026-08-21T00:00:00Z",
+                    "raw_mandate" to mapOf(
+                        "reason" to "one_time",
+                        "max_amount" to 5000,
+                        "currency" to "usd",
+                        "checkout_session_id" to "cs_test_abc123",
+                        "merchant_id" to "merch_abc123",
+                        "expires_at" to "2026-08-21T00:00:00Z",
+                    ),
+                ),
             )
             when (result) {
                 is PaymentProcessingResult.Processing -> {

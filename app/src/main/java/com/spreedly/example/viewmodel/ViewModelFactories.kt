@@ -13,6 +13,7 @@ import com.spreedly.example.screens.bankaccount.BankAccountViewModel
 import com.spreedly.example.screens.basiccheckout.BasicCheckoutViewModel
 import com.spreedly.example.screens.bottomsheet.BottomSheetPaymentViewModel
 import com.spreedly.example.screens.braintreepayment.BraintreePaymentViewModel
+import com.spreedly.example.screens.clicktopay.ClickToPayPaymentViewModel
 import com.spreedly.example.screens.customcheckout.CheckoutWithAdditionalFieldsViewModel
 import com.spreedly.example.screens.customizedcheckout.CustomisedCheckoutViewModel
 import com.spreedly.example.screens.customtextfields.CustomTextFieldsViewModel
@@ -174,3 +175,7 @@ fun braintreePaymentViewModel(): BraintreePaymentViewModel = viewModelWithContex
     BraintreePaymentViewModel(context)
 }
 
+@Composable
+fun clickToPayPaymentViewModel(): ClickToPayPaymentViewModel = viewModelWithContext { context ->
+    ClickToPayPaymentViewModel(context)
+}

@@ -100,6 +100,8 @@
 
     <string name="menu_item_braintree_payment_title">Braintree Payment</string>
     <string name="menu_item_braintree_payment_description">Braintree PayPal and Venmo payments with native SDK checkout flow</string>
+    <string name="menu_item_clicktopay_demo_title">Click to Pay</string>
+    <string name="menu_item_clicktopay_demo_description">Mastercard Click to Pay — present(), events, and tokenize (physical device recommended for OTP)</string>
 
 
     <string name="menu_item_java_offsite_title">Java Offsite Payment</string>

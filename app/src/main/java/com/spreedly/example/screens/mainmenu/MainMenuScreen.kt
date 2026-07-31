@@ -203,6 +203,14 @@ fun MainMenuScreen(navController: NavHostController) {
         Spacer(Modifier.height(Spacing.md))
 
         MenuItemCard(
+            title = stringResource(R.string.menu_item_clicktopay_demo_title),
+            description = stringResource(R.string.menu_item_clicktopay_demo_description),
+            onClick = { navController.navigate("clicktopay_demo") },
+        )
+
+        Spacer(Modifier.height(Spacing.md))
+
+        MenuItemCard(
             title = stringResource(R.string.menu_item_design_system_title),
             description = stringResource(R.string.menu_item_design_system_description),
             onClick = { navController.navigate("design_system") },

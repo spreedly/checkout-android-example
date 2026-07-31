@@ -23,6 +23,7 @@ import com.spreedly.example.screens.headlessbankaccount.HeadlessBankAccountViewM
 import com.spreedly.example.viewmodel.viewModelWithContext
 import com.spreedly.example.screens.bottomsheet.BottomSheetPaymentScreen
 import com.spreedly.example.screens.bottomsheet.BottomSheetPaymentViewModel
+import com.spreedly.example.screens.clicktopay.ClickToPayPaymentScreen
 import com.spreedly.example.screens.braintreepayment.BraintreePaymentScreen
 import com.spreedly.example.screens.customcheckout.CheckoutWithAdditionalFieldsScreen
 import com.spreedly.example.screens.customizedcheckout.CustomisedCheckoutScreen
@@ -210,6 +211,11 @@ fun MainNavHost(bottomSheetViewModel: BottomSheetPaymentViewModel) {
             )
         }
 
+        composable("clicktopay_demo") {
+            ClickToPayPaymentScreen(
+                onBackClick = { navController.popBackStack() },
+            )
+        }
 
     }
 }

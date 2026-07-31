@@ -15,6 +15,7 @@
 | [Recaching](guides/recaching.md) | CVV recaching for saved payment methods |
 | [ACH Bank Account](guides/ach-bank-account.md) | Tokenize bank accounts with pre-built UI, custom layout, or headless flow |
 | [Offsite Payments](guides/offsite-payments.md) | PayPal, Pix, Boleto via Chrome Custom Tabs |
+| [Click to Pay](guides/click-to-pay.md) | Mastercard Click to Pay / Unified Checkout via WebView |
 | [Stripe APM](guides/stripe-apm.md) | iDEAL, Bancontact, EPS, P24, SEPA via Stripe |
 | [Stripe Radar](guides/stripe-radar.md) | Device fingerprinting for fraud detection via Stripe Radar |
 | [Braintree APM](guides/braintree-apm.md) | PayPal and Venmo via Braintree |
