@@ -90,6 +90,7 @@ SpreedlyBankAccountBottomSheet(
 | `metadata` | `Map<String, Any>` | `emptyMap()` | Metadata attached to the payment method |
 | `additionalFields` | `Map<AdditionalField, String>` | `emptyMap()` | Extra fields passed directly (e.g., address) |
 | `onPaymentResult` | `((PaymentResult) -> Unit)?` | `null` | Inline result callback |
+| `mandate` | `Map<String, Any?>?` | `null` | Opaque mandate object forwarded verbatim to Spreedly at `payment_method.mandate`. Omitted when null or empty. Spreedly validates its contents; the SDK does not |
 
 ### With Result Callback
 

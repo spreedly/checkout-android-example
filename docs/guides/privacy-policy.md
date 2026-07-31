@@ -19,6 +19,7 @@ Spreedly API (`core.spreedly.com`) over HTTPS:
 | Billing address | Address lines 1--2, city, state, ZIP, country, phone number |
 | Shipping address | Address lines 1--2, city, state, ZIP, country, phone number |
 | Optional fields | Email, custom metadata key-value pairs, `retainOnSuccess` flag |
+| Mandate | Opaque merchant-supplied mandate object, forwarded verbatim. May carry merchant or consumer identifiers, so it is treated as do-not-log: never written to logs or analytics, and never persisted on the device |
 
 For offsite payment methods (PayPal, Pix, Boleto, etc.), the same
 authentication fields are sent along with the payment method type, email,

@@ -5,6 +5,18 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-30
+
+### Added
+
+- **Click to Pay** (`clicktopay`) — optional `:clicktopay` artifact with Mastercard WebView checkout (not present in the `1.2.0` artifact). Entry points: `SpreedlyClickToPayCheckout` (`present`, `cancel`, `events`, `state`, `tokenize`, lookup/OTP helpers), drop-in `SpreedlyClickToPayButton` / `ClickToPayBrandedButton`, and `ClickToPaySavedCardsDetector` for pre-checkout Remember-me recognition (tear down before `present()`). Sandbox new-user enrollment via `ClickToPayCheckoutConfig.sandboxEnrollmentCard` (in-memory only; rejected in production). Default UI uses MC `src-card-list` with native SPL CVV/pay; sheet chrome follows `Spreedly.setGlobalTheme()` via `SpreedlyAdaptiveGlobalTheme` (pay actions keep Mastercard SRC branding). WebView is hardened (Mastercard host allowlist, scheme deny-list, bridge method/size/forbidden-key guards, DCF popup policies); public `CheckoutComplete` carries metadata only (no PAN/CVV). See [Click to Pay Integration Guide](guides/click-to-pay.md).
+- **Mandate passthrough on tokenization** (`payments-core`, `paymentsheet`, `hostedfields`) — optional `mandate` on tokenize APIs and drop-in sheets, forwarded verbatim to Spreedly at `payment_method.mandate` and omitted when null or empty. Accepts a `Map<String, Any?>` (nested values preserved; pre-parsed `JsonObject` allowed). Spreedly owns schema validation; the SDK does not cap or validate mandate contents. Wire semantics follow ECMA-262 `JSON.stringify` (`NaN`/`Infinity` → `null`; `Date`/`Instant`/`UUID`/`URL`/`URI` → canonical string). Unrepresentable values or reference cycles fail tokenization with the offending key path. Mandate contents are never logged. Documented in express, ACH, and custom-form guides.
+
+### Breaking Changes
+
+- **`SpreedlyBottomSheet` / `SpreedlyBankAccountBottomSheet` Compose signatures** (`paymentsheet`) — optional trailing `mandate` changes the Compose-generated method name. Recompile consumers against the new `paymentsheet` AAR. Kotlin callers using defaults are source-compatible; Java `PaymentSheetJavaHelper.setupContent` keeps prior overload arities.
+- **Tokenize APIs gain trailing `mandate`** (`payments-core`) — `Spreedly.createCreditCard` / `createBankAccount` / `createPaymentMethod` (and matching `SpreedlyPaymentManager` methods) take optional `mandate: Map<String, Any?>?`. Kotlin defaults remain source-compatible; Java callers must pass `null` or a map.
+
 ## [1.2.0] - 2026-07-22
 
 ### Added

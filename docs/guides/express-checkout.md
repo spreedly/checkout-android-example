@@ -360,6 +360,7 @@ The bottom sheet auto-dismisses on `Completed`, `Canceled`, and API/network `Fai
 | `savePaymentCheckboxLabel` | `String` | `"Save payment information for future use"` | Checkbox label text |
 | `savePaymentCheckboxDefaultChecked` | `Boolean` | `false` | Whether the checkbox starts checked |
 | `coreFieldLabels` | `PaymentSheetCoreFieldLabels?` | `null` | Optional core card field label and placeholder overrides (iOS `DropInCoreFieldLabels` parity). `null` keeps SDK defaults |
+| `mandate` | `Map<String, Any?>?` | `null` | Opaque mandate object forwarded verbatim to Spreedly at `payment_method.mandate`. Omitted when null or empty. Spreedly validates its contents; the SDK does not |
 
 ### Core field copy (`PaymentSheetCoreFieldLabels`)
 
