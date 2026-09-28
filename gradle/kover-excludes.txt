@@ -1,0 +1,159 @@
+# Canonical Kover coverage exclusion policy.
+#
+# One representation, consumed by three places:
+#   - build.gradle.kts, the root aggregate report
+#   - build.gradle.kts, the per-module reports propagated to subprojects
+#   - scripts/ci/kover_cli_aggregate.py, the sharded merge job's Kover CLI call
+#
+# Everything is a CLASS wildcard pattern, because Gradle Kover `classes(...)`
+# and Kover CLI `--exclude` both accept exactly that syntax. Package rules were
+# converted to subtree patterns so no translation step exists: the shard
+# prototype produced a report with 136 extra classes precisely because the CLI
+# has no package filter and the translation had to be re-derived.
+#
+# `*` matches any characters including dots, so `a.b.*` covers subpackages.
+# Every former package rule but one was already paired with its own `.*` form,
+# making conversion exact.
+#
+# SUBTREE POLICY DECISION -- com.spreedly.sdk.models
+#
+# The old root config used `packages("com.spreedly.sdk.models")`, which in
+# Gradle Kover excludes only classes directly in that package, while
+# `com.spreedly.sdk.models.offsite` exists. The class-pattern form
+# `com.spreedly.sdk.models.*` also reaches that subpackage.
+#
+# The intended policy is deliberately the SUBTREE: everything under
+# com.spreedly.sdk.models is excluded, subpackages included. These are wire
+# models and DTOs with no behaviour worth covering, the old config already
+# named 13 of them individually alongside the package rule, and a per-subpackage
+# opt-in list would be one more thing to forget when a model is added.
+#
+# This is a decision, not a side effect of wildcard semantics. It is currently
+# inert -- the offsite subpackage contributes zero classes to the aggregate,
+# verified by old-vs-new per-module comparison across all eight modules -- but
+# it will silently cover future classes added under
+# com.spreedly.sdk.models.offsite. If a subpackage there ever needs coverage,
+# narrow this line rather than relying on the old package/class distinction.
+#
+# Blank lines and `#` comments are ignored. Keep it sorted.
+*$$*
+*$$serializer*
+*$Companion*
+*$WhenMappings*
+*$setupContent$*
+*$setupRecacheUI$*
+*.AuthParamsResponse*
+*.CardScheme*
+*.CheckoutButton*
+*.CreditCard*
+*.CustomFieldsConfig
+*.FormFieldType
+*.FormFieldType*
+*.Metadata*
+*.PaymentMethodDetails*
+*.PaymentMethodRequest*
+*.PaymentMethodResponse*
+*.PaymentSheet*
+*.PaymentSheetCallbacks
+*.RecacheConfig*
+*.RecacheRequest*
+*.RecacheResponse*
+*.SPLTextField*
+*.ScreenPresentationMode*
+*.SpreedlyApiService
+*.SpreedlyBottomSheet*
+*.Transaction*
+*.TransactionCompletionRequest*
+*.TransactionCompletionResponse*
+*.TransactionStatusRequest*
+*.TransactionStatusResponse*
+*.atoms.*
+*.components.*
+*.molecules.*
+*.screen.*
+*.theme.*
+*.ui.*
+*.visualtransformations.*
+*Activity*
+*Adapter*
+*AuthParamsResponse*
+*BinMetadata*
+*BraintreePayPalHandlerKt*
+*BraintreeVenmoHandlerKt*
+*BuildConfig*
+*CVVInputFieldKt*
+*CardNumberError*
+*CheckoutButton*
+*ClickToPayBrandedButtonContentKt*
+*ClickToPayBrandedButtonKt*
+*ClickToPayBrandedButtonPresentation*
+*ClickToPayButtonJavaHelper*
+*ClickToPayCheckoutArgs*
+*ClickToPayCheckoutFieldsKt*
+*ClickToPayCheckoutViewModel*
+*ClickToPayCheckoutViewModelFactory*
+*ClickToPayDisplayCardsConfig*
+*ClickToPayEnrollmentCard*
+*ClickToPayEvent$*
+*ClickToPayFieldError*
+*ClickToPayGuestCheckoutConfig*
+*ClickToPayInitConfig*
+*ClickToPayMaskedCard*
+*ClickToPayMcInitialization*
+*ClickToPayMcPayload*
+*ClickToPayNewCardFields*
+*ClickToPayNewUserEnrollmentBarKt*
+*ClickToPayOtpConfig*
+*ClickToPayPopUpWebChromeClient*
+*ClickToPayPrimaryButtonKt*
+*ClickToPaySplEncryptedFields*
+*ClickToPayTokenizeBilling*
+*ClickToPayValidationChannel*
+*ClickToPayWebViewHostKt*
+*Composable*
+*ComposableSingletons*
+*CreditCard*
+*CustomFieldsConfig*
+*Dto*
+*Entity*
+*FieldComposeUtilsKt*
+*FormFieldType*
+*Fragment*
+*Hilt_*
+*HostedFieldsJavaHelper*
+*Kt$*
+*McOrchestratorPhase*
+*McUiOverlay*
+*Model*
+*PaymentMethodRequest*
+*PaymentMethodResponse*
+*PaymentSheet*
+*PaymentSheetCallbacks*
+*Preview*
+*R
+*R$*
+*RecacheBottomSheetKt*
+*RecacheDialogKt*
+*Response*
+*SPLTextField*
+*Screen*
+*SpreedlyApiService*
+*SpreedlyBottomSheet*
+*SpreedlyClickToPayButtonKt*
+*SpreedlyPaymentBottomSheetKt*
+*SpreedlyRecacheUI*
+*SpreedlyRecacheUIKt*
+*Test*
+*Theme*
+*ViewHolder*
+*_Factory*
+*_HiltModules*
+*_MembersInjector*
+com.spreedly.hostedfields.ui.SaveCardCheckbox*
+com.spreedly.paymentsheet.*
+com.spreedly.sdk.SpreedlyFactory
+com.spreedly.sdk.SpreedlyWithCustomApiService
+com.spreedly.sdk.errors.*
+com.spreedly.sdk.examples.SpreedlyInstantiationExamples
+com.spreedly.sdk.models.*
+com.spreedly.ui.*

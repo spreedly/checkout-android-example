@@ -70,7 +70,7 @@ private fun setupSubscriptions() {
                 }
                 is ThreeDSChallengeResult.Failed -> {
                     sdk.hideThreeDSChallenge()
-                    showError(result.message ?: "3DS challenge failed")
+                    showError(result.getDescription())
                 }
                 is ThreeDSChallengeResult.Canceled -> {
                     sdk.hideThreeDSChallenge()

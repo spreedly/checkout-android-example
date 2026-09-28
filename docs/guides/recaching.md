@@ -629,7 +629,7 @@ fun MyScreen(viewModel: MyViewModel) {
 try {
     val result = spreedly.recachePaymentMethod(token, config)
 } catch (e: IllegalStateException) {
-    Log.e("Recache", "SDK not initialized: ${e.message}")
+    Log.e("Recache", "SDK not initialized")
     // Initialize SDK first
     spreedly.init(options)
 }
@@ -709,7 +709,8 @@ suspend fun recacheWithErrorHandling(
                 result.data.transaction.paymentMethod.token
             }
             is Result.Error -> {
-                val errorMessage = when (val error = result.error) {
+                val error = result.error
+                val errorMessage = when (error) {
                     is SpreedlyNetworkError.SpreedlyApiErrorDetail -> {
                         when {
                             error.statusCode == 404 -> "Card not found. It may have been deleted."
@@ -722,15 +723,14 @@ suspend fun recacheWithErrorHandling(
                     is SpreedlyNetworkError.IO_ERROR -> "Request timed out. Please try again."
                     else -> "An unexpected error occurred. Please try again."
                 }
-                
                 showError(errorMessage)
-                logError("Recache failed", error)
+                logError("Recache", error.safeDescription())
                 null
             }
         }
     } catch (e: IllegalStateException) {
         showError("SDK not initialized. Please restart the app.")
-        logError("Recache exception", e)
+        logError("Recache", "SDK not initialized")
         return null
     }
 }
@@ -884,8 +884,8 @@ RecacheConfig config = RecacheJavaHelper.createRecacheConfig(
 );
 RecacheJavaHelper.recachePaymentMethod(
     this, sdk, paymentMethodToken, config,
-    (token, updatedAt) -> Log.d("Recache", "token=" + token + " updatedAt=" + updatedAt),
-    error -> Log.e("Recache", "Recache failed")
+    (token, updatedAt) -> Log.d("Recache", "Recache succeeded"),
+    error -> Log.e("Recache", error)
 );
 ```
 

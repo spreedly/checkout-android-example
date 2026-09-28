@@ -3,16 +3,26 @@
 The Spreedly Android SDK is designed to handle sensitive payment data safely.
 It provides multiple layers of protection -- screenshot prevention, in-memory
 field encryption, clipboard blocking, automatic CVV expiry, and log
-sanitization -- so that card details are never exposed through your
-application code.
+sanitization -- to **minimize** cardholder data exposure in merchant code.
+Sensitive values still exist transiently on SDK-managed paths (validation,
+tokenization, and residual public crypto helpers documented below); follow
+this guide and [error-handling.md](error-handling.md) for safe integration.
 
 ## Screenshot and Screen Recording Prevention
 
 The SDK sets `FLAG_SECURE` on the host window whenever payment UI is visible.
-This blocks screenshots and, on most Android versions, screen recording.
+`FLAG_SECURE` prevents secure window content from appearing in screenshots
+and non-secure displays.
 
-The flag is applied when the composable enters composition and cleared
-automatically when it leaves, so the rest of your app is unaffected.
+Ownership is reference-counted per window: overlapping secure surfaces (for
+example a payment sheet under a 3-D Secure challenge) keep the flag until the
+last Spreedly owner leaves. If the host app already had `FLAG_SECURE` set,
+Spreedly leaves it set after release. The rest of your app is otherwise
+unaffected.
+
+Do not set or clear `FLAG_SECURE` yourself on a window while a Spreedly secure
+surface is active on that window. Spreedly restores the flag state from the
+first Spreedly acquire; concurrent merchant changes can race with that restore.
 
 ### Built-in coverage
 
@@ -24,6 +34,7 @@ automatically when it leaves, so the rest of your app is unaffected.
 - `SpreedlyRecacheUI`
 - `ThreeDSChallengeBottomSheet` / `ThreeDSChallengeSheet`
 - `HostedFieldsJavaHelper`
+- `ClickToPaySavedCardsDetector` (held for the detector mount duration)
 
 No extra work is needed if you use these components.
 
@@ -60,32 +71,36 @@ fun MyPaymentScreen() {
 
 ### Limitations
 
-| Android version | Screenshots | Screen recording |
-|-----------------|-------------|------------------|
-| 5 -- 9          | Blocked     | Blocked by most recorders |
-| 10+             | Blocked     | System recorder **not** blocked (Android limitation) |
-| Rooted devices  | Can be bypassed | Can be bypassed |
+`FLAG_SECURE` prevents secure window content from appearing in screenshots
+and non-secure displays. Protection against screen recording, screen sharing,
+overlays, rooted devices, and OEM-specific capture mechanisms can vary by
+Android version, device, and capture mechanism.
 
-For additional protection, consider server-side checks via the
-Play Integrity API.
+For additional protection, consider server-side checks via Play Integrity
+App Access Risk.
 
 ## Field Encryption
 
-Card numbers and CVV values are encrypted in memory using **AES-128-GCM**
-(via `SpreedlyEncryption`). Each app instance generates a random 128-bit key
-with `SecureRandom`; the key lives only in process memory and is never
-persisted.
+Card numbers, CVV, and bank account numbers (**CARD**, **CVV**, and **ACCOUNT_NUMBER**)
+are encrypted in memory using **AES-128-GCM** (via `SpreedlyEncryption`). Encryption uses
+a **per-process** lifetime key: each app process generates a random **128-bit** key with
+`SecureRandom` (one `keyBytes` for the `SpreedlyEncryption` object, not per SDK instance);
+the key lives only in process memory and is never persisted. `SpreedlyEncryption.KEY` is a
+sentinel string (not key material) used to select that process key.
 
 Encryption is applied automatically through the `Encryptor` interface:
 
-- `DefaultEncryptor.encryptValue()` encrypts CARD and CVV field types on
+- `DefaultEncryptor.encryptValue()` encrypts **CARD, CVV, and ACCOUNT_NUMBER** field types on
   every keystroke.
 - `DefaultEncryptor.decryptValue()` decrypts only when the SDK itself needs
   the plaintext (validation, scheme detection, API submission).
 - All other field types (name, expiry, ZIP) pass through unencrypted.
 
-This means your application code never has access to raw card numbers or
-CVV values, even if you inspect the field state objects.
+`@RestrictTo(LIBRARY_GROUP)` and `@Deprecated` on the encryption surfaces are
+**lint-only** — symbols remain in the published ABI. Public `decryptAES` / `KEY`
+still accept CHD for SDK field ciphertext; this release improves entropy and
+fail-closed decrypt behavior. It is **not** an egress reduction for every API
+capability (`getDisplayValue`, public `decryptAES`, and residual FieldUtils paths).
 
 ## PCI Compliance Controls
 
@@ -120,23 +135,72 @@ transmitted directly to the Spreedly API over HTTPS.
 
 ## Log Sanitization
 
-All SDK log output passes through `LogSanitizer` before reaching Logcat or
-Datadog:
+The SDK sanitizes log tags, messages, and throwables in `LoggerManager` before
+any `SpreedlyLogger` implementation runs on the standard log APIs
+(`verbose` / `debug` / `info` / `warn` / `error`) — including custom loggers
+installed via `LoggerManager.setLogger(...)`. Structured events via
+`LoggerManager.emitEvent` sanitize string attributes before Datadog and before
+the base-logger copy (that path does not go through the log-API facade).
+Implementations must not expect raw card data, CVV, or the original exception
+instance. `LoggerManager.logger` is the log-API facade; it is not the same
+instance passed to `setLogger`.
+
+Built-in sanitization covers:
 
 | Pattern | Action |
 |---------|--------|
-| 16-digit card numbers (with or without separators) | Replaced with `[REDACTED]` |
-| CVV / CVC / security code values | Replaced with `[REDACTED]` |
+| ISO 7812 card numbers / PAN-like digit runs of **12 or more** digits, including contiguous runs and digits separated by any number of spaces, hyphens, dots, or underscores (covers double-/triple-/wide-spaced formatting, glued-after-letter forms such as `cardNumber4111…`, and 20+ digit embeddings). Candidates are detected in a single linear pass with no per-candidate character cap. 12-digit dotted IPv4 addresses and long numeric IDs may over-redact | Replaced with `[REDACTED]` |
+| Labeled CVV / CVC / security code values (JSON `"cvv":"123"`, escaped-JSON `\"cvv\":\"123\"`, `verification_value`, prose `cvv: 123`; unlabeled 3–4 digits are not redacted) | Replaced with `[REDACTED]` |
 | API keys, tokens, secrets, passwords | Replaced with `[REDACTED]` |
 | Signatures and HMACs | Replaced with `[REDACTED]` |
 | Email addresses | Replaced with `[REDACTED]` |
 | Payment method / transaction tokens in URL paths | Replaced with `[REDACTED]` |
 | Log-forging control characters (`\r`, `\n`, null bytes) | Stripped |
 
+`LogSanitizer` scrubs supported PAN/CVV/token/credential/value patterns and URL
+tokens. Bare identifier-shaped path components (for example structural mandate
+key paths in conversion diagnostics) are **not** automatically scrubbed.
+
+Mandate **values** are do-not-log; request `toString` redacts them as
+`mandate=[REDACTED]`. Conversion diagnostics may contain structural mandate key
+paths. Click to Pay unexpected local conversion failures publish only a static
+public failure message (`Tokenize failed`). The SDK default `sdkScope`
+`CoroutineExceptionHandler` logs only the exception class name (no throwable
+payload) so custom loggers cannot receive raw source exception content from
+that last-resort path.
+
 Additional protections:
 
 - `PaymentMethodRequest.toString()` redacts `environmentKey`, `nonce`,
   `signature`, and `certificateToken`.
+- `SpreedlyNetworkError.SpreedlyApiErrorDetail.toString()` matches
+  `safeDescription()` (`statusCode` and `errorKey` only). It does not
+  include `rawErrorBody`, `errorMessage`, or `validationErrors`. Getters
+  return values stored after `LogSanitizer.sanitizeStoredErrorString` (pattern
+  redaction, trailing separator-optional partial-digit redaction after the 8 KiB cap, log-forge
+  control characters → space, then `trim()`), including nested
+  `validationErrors` `fieldName` / `errorKey` / `errorMessage`, after an 8 KiB
+  length cap. That is not the verbatim HTTP body and is not a guarantee every
+  secret shape is removed. Prefer `safeDescription()` for logs; do **not** parse
+  `rawErrorBody` / `rawErrorResponse` as wire JSON (over-redaction can break
+  JSON, e.g. unlabeled 13-digit timestamps). Do not treat stored strings as a
+  source of truth for analytics or retries — use `statusCode` / `errorKey` /
+  `safeDescription()` instead.
+  `AppNetworkError.API_ERROR.toString()` also matches `safeDescription()`;
+  public `API_ERROR` getters remain raw. Direct `AppNetworkError` consumers are not
+  covered by this tokenize-path hardening. `RequestHandler` uses streaming
+  `HttpStatement.execute { }` (not the no-arg overload that buffers the full
+  body via `call.save()`), reads at most 8 KiB **bytes** from the HTTP error
+  body channel, and cancels the rest; success (2xx) bodies are not capped.
+  Cancel stops further channel reads on that path; it is not a socket-level
+  cutoff if the engine already buffered data.
+- `PaymentResult.Failed.toString()` is log-safe (`errorType`,
+  `statusCode`, `apiError`, and `state` when present). It does not include
+  `message`, `rawErrorResponse`, `validationErrors`, or `originalError`. Prefer
+  `toString()` for logs and `getDescription()` for UI; never log getters
+  directly on merchant-constructed failures.
+- `ThreeDSChallengeResult.Failed.toString()` is log-safe
+  (`errorType` only). It does not include `message` or `originalError`.
 - `ApiClientBuilder` sanitizes the `Authorization` header in HTTP logs.
 - `DatadogSpreedlyLogger` masks the environment key to its first 4
   characters (`AbCd****`) in all Datadog attributes via `LogSanitizer.maskEnvironmentKey()`.

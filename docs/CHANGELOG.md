@@ -5,12 +5,58 @@ All notable changes to the Spreedly Android SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-16
+
+### Changed
+
+- **Kotlin 2.1.20** — SDK compiles with Kotlin **2.1.20** (was 2.3.10) so React Native 0.82–0.86 hosts no longer need to pin Kotlin 2.3.10. AGP 8.13.2, Gradle 8.14.3, and Compose BOM are unchanged.
+- **Custom loggers** (`payments-core`) — `setLogger` now receives already-sanitized tag, message, and throwable (no original exception type or PAN/CVV in log text).
+- **Recache CVV** (`paymentsheet`) — CVV and the in-flight spinner are not restored after rotation.
+
+### Breaking Changes
+
+- **API error fields** (`payments-core`) — `SpreedlyApiErrorDetail` stored strings (`rawErrorBody`, messages, validation errors) are capped and redacted; they are no longer the raw HTTP body and may not be valid JSON. Use `statusCode` / `errorKey` / `safeDescription()`. Do not parse `rawErrorBody` as wire JSON. `AppNetworkError.API_ERROR` getters are still raw.
+- **ACH account numbers** (`payments-core`, `paymentsheet`) — validation is ciphertext-only. A raw account number in `BankAccountSheetCallbacks.onAccountNumberChange` or `AccountNumberValidator` fails and will not tokenize. Use `SPLTextField(FormFieldType.ACCOUNT_NUMBER)`.
+- **Card scheme** (`payments-core`) — plaintext digits on `onCardNumberChange` no longer set `cardScheme`. Drive PAN through `SPLTextField`.
+
+### Deprecated
+
+- **`SpreedlyEncryption` / `Encryptor` / `FormFieldType.shouldEncrypt()`** (`payments-core`) — lint-deprecated and restricted to the library group. Use `SPLTextField` for card and bank fields. `KEY` is a sentinel string, not key material.
+
+### Fixed
+
+- **Click to Pay** (`clicktopay`) — host ingress executor is shut down when the WebView detaches and when checkout or saved-cards detector sessions are cleared, so `detectorKey` re-runs no longer leak `c2p-host-ingress` threads.
+- **Click to Pay** (`clicktopay`) — checkout with a saved card could fail tokenization with `"The requested information does not exist for any available network"`. The bridge payload sanitizer was running MC's `flowId` / `correlationId` / `merchantTransactionId` through the log-text PAN heuristic and redacting legitimate IDs to `"[REDACTED]"`. PAN and CVV redaction are unaffected; a plain control-character strip still guards these fields.
+- **Click to Pay** (`clicktopay`) — host and branded-button `script-src` CSP was missing the sandbox Visa, Amex, and Discover per-network SRC adapter script hosts that MC's `lib.js` loads directly, outside `*.src.mastercard.com`. Checkout with a non-Mastercard-branded card could fail to load that network's adapter.
+- **Click to Pay** (`clicktopay`) — entering an invalid email or phone on the identity form ended the checkout instead of letting the shopper correct it and try again.
+- **Click to Pay** (`clicktopay`) — saved-card art didn't show up for a recognized device; the CSP was missing the host MC serves it from.
+- **Click to Pay** (`clicktopay`) — Visa, Discover, and Amex cards couldn't be found or added at all. The checkout WebView only allowed Mastercard's own hosts, so the other networks' identity-lookup and enrollment iframes were blocked. Now matches iOS's allowlist.
+- **Click to Pay** (`clicktopay`) — Discover checkout failed even after the above fix — its fingerprinting script runs outside the iframe sandbox the other networks use, and needed a few more hosts (its own domain, ThreatMetrix, and its tracking-pixel host) allowed.
+- **Click to Pay** (`clicktopay`) — adding an American Express card failed with a generic error, then with a `jQuery not defined` error once the first cause was fixed. Amex's adapter script and its jQuery/js-cookie dependencies load from hosts that weren't on the allowlist.
+- **Click to Pay** (`clicktopay`) — adding a new card from an already-recognized saved-cards session failed with "Enter an email or phone number to continue," even though the device didn't need one to be recognized.
+- **Click to Pay** (`clicktopay`) — saved-card art still didn't load even after the `img-src` CSP fix above: the CSP allowed the asset host, but the native WebView allowlist independently blocked it, and that layer fails silently with no CSP violation to diagnose from.
+- **Click to Pay** (`clicktopay`) — same class of bug as the item above, but for production: `script-src` only allowlisted the sandbox Visa/Amex adapter hosts, so a production checkout with those cards would have hit the same blocked-script failure the sandbox fix addressed. Confirmed against MC's published production `lib.js` and validated on live production checkouts. Discover's production hosts needed no change; the existing wildcards already covered them. The production equivalent of the Mastercard saved-card-art host is still unconfirmed — it isn't referenced anywhere in `lib.js`, so it can't be found the same way.
+- **Click to Pay** (`clicktopay`) — a shopper recognized by Mastercard with no cards enrolled for this merchant's DPA got stuck on "OTP validated — loading cards" indefinitely after entering their OTP. The empty `getCards` response after OTP validation retried a profile lookup that had already run and was silently skipped instead of routing to card enrollment.
+- **Click to Pay** (`clicktopay`) — a shopper whose new-card checkout was declined (e.g. Amex rejecting the card) and who had no other saved cards got stuck on an empty "Select a saved card" screen with no way forward but sign out. `CHANGE_CARD` always routed to the saved-card list regardless of whether any cards existed; it now routes to card enrollment when the shopper has none.
+
+### Security
+
+- **Logging / `toString()`** (`payments-core`) — `PaymentResult.Failed`, `ThreeDSChallengeResult.Failed`, and API error `toString()` are log-safe (`statusCode` / `errorType` only). Prefer `getDescription()` for UI. Logs redact labeled CVV JSON and 12–19 digit PAN-like runs (JSON timestamps can over-redact).
+- **Click to Pay** (`clicktopay`) — tokenize failures publish a static `Tokenize failed` (no exception text). Host WebView uses origin-checked messaging instead of `JavascriptInterface`. UAT sandbox before production.
+- **Screenshot flag** (`payments-core`, `clicktopay`) — overlapping Spreedly screens keep `FLAG_SECURE` until the last one closes; merchant-set `FLAG_SECURE` is preserved.
+- **Submit fail-closed** (`payments-core`) — corrupt optional card/CVV/account ciphertext returns `ValidationFailed` instead of tokenizing empty values.
+- **LogSanitizer** (`payments-core`) — redacts PAN-like digit runs of 12+ via one-pass candidate scanning (contiguous or separated by any number of space/dot/underscore/hyphen characters, including glued-after-letter and 20+ digit embeddings), and escaped-JSON labeled CVV (`\"cvv\":\"123\"`). Stored error strings also redact separator-formatted PAN fragments split across the 8 KiB cap.
+- **Click to Pay** (`clicktopay`) — host and branded-button HTML `script-src` CSP uses a SHA-256 hash of the bootstrap script instead of `'unsafe-inline'`, and replaces the `*.src.mastercard.com` wildcard with an explicit host list: `src.mastercard.com` and `sandbox.src.mastercard.com`; the sandbox and production Visa (`secure.checkout.visa.com`) and Amex (`aexp-static.com`) SRC adapter hosts; Discover (`discover.com`, `discovercard.com` and their subdomains, `webapp.sandbox.src.discover.com`) and its ThreatMetrix fingerprinting hosts (`online-metrix.net` and subdomains); and `code.jquery.com` / `cdn.jsdelivr.net` for Amex's checkout-window dependencies. `WebMessageListener` origin checks remain the primary control.
+- **Click to Pay** (`clicktopay`) — `isAllowedMastercardOrigin`, which gates the WebMessage bridge, had widened along with the navigation/resource allowlist and would accept a `sourceOrigin` from Visa, Discover, Amex, ThreatMetrix, or the third-party CDN hosts. `WebMessageListener`'s own `allowedOriginRules` already restricted this to Mastercard before the callback ran, so this wasn't independently exploitable; it's now narrowed back to Mastercard-only so the bridge origin check doesn't silently drift with future allowlist changes. Blocked-request debug logging also switched from a heuristic string sanitizer to a scheme/host/path-only representation, dropping query and fragment data outright instead of trying to redact it.
+- **Click to Pay** (`clicktopay`) — `code.jquery.com`/`cdn.jsdelivr.net` no longer count as valid main-frame navigation targets, only as script resources. They're pure library CDNs with no `frame-src` CSP entry, so there was no legitimate navigation use for them; narrowing this doesn't change what Amex's checkout window can load.
+- **Click to Pay** (`clicktopay`) — that navigation restriction wasn't fully enforced: `shouldOverrideUrlLoading` isn't called for POST navigation, so a resource-only host (the two CDNs above, or the Mastercard asset host) could still have replaced the main-frame document via a POST and only faced the broader resource policy. `shouldInterceptRequest` now enforces the navigation policy for main-frame requests directly, closing that gap regardless of HTTP method.
+
 ## [1.3.0] - 2026-07-30
 
 ### Added
 
 - **Click to Pay** (`clicktopay`) — optional `:clicktopay` artifact with Mastercard WebView checkout (not present in the `1.2.0` artifact). Entry points: `SpreedlyClickToPayCheckout` (`present`, `cancel`, `events`, `state`, `tokenize`, lookup/OTP helpers), drop-in `SpreedlyClickToPayButton` / `ClickToPayBrandedButton`, and `ClickToPaySavedCardsDetector` for pre-checkout Remember-me recognition (tear down before `present()`). Sandbox new-user enrollment via `ClickToPayCheckoutConfig.sandboxEnrollmentCard` (in-memory only; rejected in production). Default UI uses MC `src-card-list` with native SPL CVV/pay; sheet chrome follows `Spreedly.setGlobalTheme()` via `SpreedlyAdaptiveGlobalTheme` (pay actions keep Mastercard SRC branding). WebView is hardened (Mastercard host allowlist, scheme deny-list, bridge method/size/forbidden-key guards, DCF popup policies); public `CheckoutComplete` carries metadata only (no PAN/CVV). See [Click to Pay Integration Guide](guides/click-to-pay.md).
-- **Mandate passthrough on tokenization** (`payments-core`, `paymentsheet`, `hostedfields`) — optional `mandate` on tokenize APIs and drop-in sheets, forwarded verbatim to Spreedly at `payment_method.mandate` and omitted when null or empty. Accepts a `Map<String, Any?>` (nested values preserved; pre-parsed `JsonObject` allowed). Spreedly owns schema validation; the SDK does not cap or validate mandate contents. Wire semantics follow ECMA-262 `JSON.stringify` (`NaN`/`Infinity` → `null`; `Date`/`Instant`/`UUID`/`URL`/`URI` → canonical string). Unrepresentable values or reference cycles fail tokenization with the offending key path. Mandate contents are never logged. Documented in express, ACH, and custom-form guides.
+- **Mandate passthrough on tokenization** (`payments-core`, `paymentsheet`, `hostedfields`) — optional `mandate` on tokenize APIs and drop-in sheets, forwarded verbatim to Spreedly at `payment_method.mandate` and omitted when null or empty. Accepts a `Map<String, Any?>` (nested values preserved; pre-parsed `JsonObject` allowed). Spreedly owns schema validation; the SDK does not cap or validate mandate contents. Wire semantics follow ECMA-262 `JSON.stringify` (`NaN`/`Infinity` → `null`; `Date`/`Instant`/`UUID`/`URL`/`URI` → canonical string). Unrepresentable values or reference cycles fail tokenization with the offending key path. Mandate **values** are do-not-log (request `toString` redacts them); conversion diagnostics may include structural key paths. Documented in express, ACH, and custom-form guides.
 
 ### Breaking Changes
 

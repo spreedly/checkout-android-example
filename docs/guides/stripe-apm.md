@@ -254,7 +254,7 @@ private fun observePaymentResults() {
                     handleSuccess(message)
                 }
                 is PaymentResult.Failed -> {
-                    handleFailure(result.message ?: "Payment failed")
+                    handleFailure(result.getDescription())
                 }
                 is PaymentResult.Canceled -> {
                     handleCancellation()
@@ -498,14 +498,15 @@ is blank, it publishes `PaymentResult.Failed` immediately:
 
 ```kotlin
 is PaymentResult.Failed -> {
+    val description = result.getDescription()
     when {
-        result.message?.contains("publishable key") == true -> {
+        description.contains("publishable key") -> {
             // Missing or blank Stripe publishable key
         }
-        result.message?.contains("Client secret") == true -> {
+        description.contains("Client secret") -> {
             // Missing or blank client secret
         }
-        result.message?.contains("Transaction token") == true -> {
+        description.contains("Transaction token") -> {
             // Missing or blank transaction token
         }
     }

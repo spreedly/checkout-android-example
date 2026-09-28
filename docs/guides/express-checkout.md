@@ -92,7 +92,7 @@ viewModelScope.launch {
     sdk.paymentResultFlow.collect { result ->
         when (result) {
             is PaymentResult.Completed -> sendTokenToBackend(result.token)
-            is PaymentResult.Failed -> showError(result.message)
+            is PaymentResult.Failed -> showError(result.getDescription())
             is PaymentResult.Canceled -> { /* user dismissed */ }
             PaymentResult.Initial -> { /* waiting */ }
         }
@@ -274,7 +274,7 @@ public class PaymentActivity extends AppCompatActivity {
                 String token = ((PaymentResult.Completed) result).getToken();
                 // Send token to backend
             } else if (result instanceof PaymentResult.Failed) {
-                String message = ((PaymentResult.Failed) result).getMessage();
+                String message = ((PaymentResult.Failed) result).getDescription();
                 // Show error
             } else if (result instanceof PaymentResult.Canceled) {
                 // User dismissed
@@ -312,7 +312,7 @@ This is what you collect. Emitted after the tokenization API call completes (or 
 | `Initial` | -- | Default state before any payment |
 | `Completed` | `token`, `paymentMethodResponse`, `shouldRetain`, `state`, `nonce`, `deviceData` | Tokenization succeeded |
 | `Canceled` | -- | User dismissed the bottom sheet |
-| `Failed` | `errorType`, `message`, `state`, `apiError`, `statusCode`, `validationErrors`, `rawErrorResponse` | Tokenization failed |
+| `Failed` | `errorType`, `message`, `state`, `apiError`, `statusCode`, `validationErrors`, `rawErrorResponse` | Tokenization failed. SDK path: strings sanitized via `fromNetworkError`; do not log getters — use `toString()` (see [Error Handling](error-handling.md#error-logging-for-debugging)). |
 
 ```kotlin
 sdk.paymentResultFlow.collect { result ->
@@ -605,9 +605,9 @@ is PaymentResult.Failed -> {
             val description = result.getDescription()
             val apiError = result.apiError  // e.g., SpreedlyApiError.VALIDATION_ERROR
 
-            // Field-level validation errors from the API
+            // Field-level validation errors from the API — highlight in UI; do not log messages
             result.validationErrors.forEach { error ->
-                Log.d("Payment", "${error.fieldName}: ${error.errorMessage}")
+                showFieldError(error.fieldName, error.errorMessage)
             }
         }
         PaymentResult.Failed.ErrorType.NETWORK_ERROR -> {

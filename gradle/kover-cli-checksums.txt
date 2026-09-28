@@ -1,0 +1,37 @@
+# Pinned SHA-256 for the Kover CLI jar, keyed by version.
+#
+# The sharded coverage merge job runs `java -jar kover-cli.jar`, so this is an
+# executable fetched at CI time and it gets pinned rather than trusted. Maven
+# Central publishes only a .sha1 alongside the artifact, which is too weak to
+# rely on for integrity, so the SHA-256 is recorded here instead.
+#
+# The version itself is NOT recorded here -- it is read from
+# gradle/libs.versions.toml so the CLI always matches the Gradle plugin. This
+# file only answers "what should that version's jar hash to".
+#
+# MAINTENANCE, when Kover is upgraded:
+#   1. bump `kover` in gradle/libs.versions.toml
+#   2. ./scripts/ci/fetch-kover-cli.sh --print-sha256
+#   3. add the new "<version>  <sha256>" line below (keep old lines; they cost
+#      nothing and make a rollback verifiable)
+#   4. confirm the value independently, e.g. from a second machine or by
+#      comparing against the .sha1 Maven Central publishes
+#   5. python3 scripts/ci/test_kover_artifact_parser.py
+#        The merge job parses */build/kover/custom.artifact, which is Kover's
+#        internal format. A layout change there would otherwise surface as a
+#        wrong aggregate rather than an error, so the parser tests are part of
+#        the upgrade, not optional.
+#   6. re-run the monolith-vs-CLI aggregate parity check
+#        Gradle Kover and the CLI must still agree exactly on every raw counter
+#        and the whole class set. A version skew between the plugin that writes
+#        the binary coverage and the CLI that reads it is precisely what this
+#        pin exists to prevent, and parity is the only proof it held.
+#
+# All three -- a pin, green parser tests, and exact parity -- are required
+# together. A Kover bump with any one missing should not merge.
+#
+# A version present in libs.versions.toml but absent here fails the build
+# rather than downloading unverified.
+#
+# <version>  <sha256>
+0.9.3  6c5ac0c25465c3ab05b7ca5d8eea08d9fec544ee78c26376c0c6d5b5b0507828

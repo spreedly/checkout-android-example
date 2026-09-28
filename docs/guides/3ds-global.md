@@ -349,8 +349,7 @@ class PaymentViewModel(val sdk: Spreedly) : ViewModel() {
                     }
 
                     is ThreeDSChallengeResult.Failed -> {
-                        val message = result.message ?: "3DS Challenge failed"
-                        _errorMessage.value = "Payment failed: $message"
+                        _errorMessage.value = "Payment failed: ${result.getDescription()}"
                         sdk.hideThreeDSChallenge()
                     }
 
@@ -615,7 +614,7 @@ class PaymentActivity : ComponentActivity() {
                         handleSuccess()
                     }
                     is ThreeDSChallengeResult.Failed -> {
-                        handleError(result.message ?: "Challenge failed")
+                        handleError(result.getDescription())
                     }
                     is ThreeDSChallengeResult.Canceled -> {
                         handleCancellation()
@@ -1048,8 +1047,8 @@ data class Failed(
 
 **Properties:**
 - `errorType` — Type of error (`FORTER_ERROR`, `NETWORK_ERROR`, `UNKNOWN_ERROR`)
-- `message` — Human-readable error message
-- `originalError` — Original exception (for debugging)
+- `message` — Human-readable error message (safe for UI; do not log verbatim if it could echo vendor text)
+- `originalError` — Unsanitized; do not log [Throwable.message] or the stack
 
 **When to expect:**
 - Authentication failed
@@ -1057,8 +1056,8 @@ data class Failed(
 - Forter SDK encountered an error
 
 **What to do:**
-- Show error message to user
-- Log error details for debugging
+- Show `getDescription()` to the user (not `message` on merchant-constructed failures)
+- Log `errorType` and `toString()` only — not `message`, `originalError`, or `"$failed"`
 - Potentially retry or offer alternative payment method
 
 #### Canceled

@@ -43,8 +43,9 @@ bridges MC lifecycle events to your app through `SpreedlyClickToPayCheckout`.
 
 1. **Spreedly account** with Click to Pay enabled and a sandbox or production DPA ID (`srcDpaId`)
 2. **Spreedly SDK initialized** via `Spreedly.init(options)` with fresh enhanced auth (nonce, signature, timestamp, certificate)
-3. **Physical device recommended** for sandbox OTP and DCF (device cardholder flows)
-4. See the [Compatibility table](../../README.md#compatibility) in the README for Android API level requirements
+3. **System WebView with `WEB_MESSAGE_LISTENER`** — checkout host and branded button require this AndroidX WebKit feature (Chrome/Android System WebView **82+** per [Android docs](https://developer.android.com/develop/ui/views/layout/webapps/native-api-access-jsbridge)). Unsupported devices fail closed: checkout emits `ClickToPayEvent.Error` / `C2P_INIT`; the branded button reports an error state without crashing composition. Merchants can usually recover by updating **Android System WebView** (or Chrome) from Google Play. Devices whose active WebView provider does not support `WEB_MESSAGE_LISTENER` are not supported for Click to Pay. Runtime support is checked via `WebViewFeature.isFeatureSupported()`; the SDK currently depends on `androidx.webkit:webkit:1.12.1` (bump tracked separately).
+4. **Physical device recommended** for sandbox OTP and DCF (device cardholder flows)
+5. See the [Compatibility table](../../README.md#compatibility) in the README for Android API level requirements
 
 ---
 
@@ -121,6 +122,7 @@ Use `ClickToPaySavedCardsDetector` when the merchant screen needs to know whethe
 Rules:
 
 - The detector forces `merchantHostedCardList = true` so MC publishes masked metadata only (no `src-card-list` UI in the detector WebView).
+- While mounted, the detector applies `SecureScreen()` / `FLAG_SECURE` for the host window for the full mount duration (released when the detector leaves composition, subject to overlapping Spreedly secure surfaces).
 - **Unmount the detector** (`savedCardsDetectorKey = -1` or equivalent) and await tear-down **before** `SpreedlyClickToPayCheckout.present(...)`. Two concurrent MC WebViews share process cookies and can race.
 - Await tear-down whenever the detector was mounted (`savedCardsDetectorKey >= 0` before unmount), not only when `onControllerReady` has fired. Hold the controller from `onControllerReady` and call `awaitTearDown()` after unmount; if the controller is still null after unmount, await `onDetectorDisposed` (for example via a `CompletableDeferred` completed in that callback) so `present()` does not race ahead. Do **not** rely on `controller?.awaitTearDown()` alone — that no-ops when the controller is null and skips the wait entirely. Prefer `onDetectorDisposed` + `awaitTearDown()`; do not use `withFrameNanos` as the primary tear-down signal. `awaitTearDown()` returns `true` when dispose completed within 5s and `false` on timeout — **do not call `present()` when it returns `false`**; show an error or retry after the detector finishes unmounting.
 - `SpreedlyClickToPayCheckout.present()` **rejects** (emits `C2P_INIT` error) while a detector composable is still mounted. Tear down first, then present.
@@ -453,6 +455,7 @@ Mastercard Unified Checkout Solutions (UCS) mobile integration requirements enfo
 | Production base | `https://src.mastercard.com` |
 | Query params | `srcDpaId`, `locale` |
 | Init payload | `dpaTransactionOptions.paymentOptions[].dynamicDataType = "NONE"` |
+| Host / branded button bridge | Requires System WebView `WEB_MESSAGE_LISTENER` (Chrome/WebView 82+). Host/detector unsupported → `C2P_INIT`; branded button reports an error state without crashing (see [Prerequisites](#prerequisites)) |
 | UAT signoff | Spreedly/MC must confirm lib URL and init payload on sandbox before production — track in your release ticket |
 
 Pinned references:
@@ -475,30 +478,42 @@ Mastercard’s mobile Click to Pay integration requires a WebView host. The SDK 
 
 | Control | Purpose |
 |---------|---------|
-| `SecureScreen()` | Blocks screenshots / screen recording during checkout |
-| HTTPS navigation allowlist | Only `*.src.mastercard.com` hosts (see table below) |
+| `SecureScreen()` | Prevents screenshots and non-secure display output; recording/capture protection varies by device |
+| HTTPS navigation/resource allowlist | `*.src.mastercard.com` plus the federated-network, threat-intel, and third-party-library hosts MC's `lib.js` and per-network adapters load directly (see [Host allowlist](#host-allowlist)); the WebMessage bridge origin check stays Mastercard-only regardless |
 | Explicit scheme deny-list | Blocks `content://`, `file://`, `android.resource://`, `javascript:`, and `intent://` in navigation and subresource loads |
 | Inline scheme policy | `about:` and main-frame `data:` pass-through in `shouldInterceptRequest` for `loadDataWithBaseURL` bootstrap; subresource `data:`/`blob:` allowed for MC assets; top-level `data:`/`blob:` navigation blocked in `shouldOverrideUrlLoading`; main-frame `blob:` blocked in `shouldInterceptRequest` |
 | `MIXED_CONTENT_NEVER_ALLOW` | Blocks mixed HTTP/HTTPS content |
 | Bridge method allowlist + schemas | Rejects unknown `postMessage` methods and malformed payloads |
 | Payload value sanitization | Redacts PAN/CVV patterns in accepted bridge string values before orchestrator handling |
-| Payload size cap | Rejects oversized bridge messages |
+| Payload size cap | Host bridge rejects oversized messages (256 KB UTF-8); branded button uses a tighter 16 KiB UTF-8 cap |
+| Host ingress structure caps | Rejects excessive JSON depth, array length, object keys, and non-opaque string length (`encryptedCard` / `dynamicData` exempt from string-length cap) |
+| Host ingress threading | Host `validate` runs on a serialized background executor that is shut down when the host WebView detaches or the checkout / saved-cards detector session is cleared; delivery to the orchestrator is generation-gated on the main thread. Branded button keeps small allowlisted parse on the main thread |
 | Forbidden sensitive keys | Bridge payloads cannot carry PAN/CVV keys from JS (normalized key match on objects and arrays) |
 | No bridge param retention | Outbound bridge commands are not stored in production |
-| `removeJavascriptInterface` on detach | Bridge removed when WebView is destroyed |
-| `addJavascriptInterface` | Required by MC SDK for native↔JS communication |
-| DCF popup handling | `onCreateWindow` opens a child WebView with the same URL policies and hardened settings |
-| Branded button `WebMessageListener` | Mastercard-only `allowedOriginRules` (`https://src.mastercard.com`, `https://*.src.mastercard.com`); rejects non-main-frame and untrusted `sourceOrigin` |
+| Host `WebMessageListener` (`C2pHostBridge`) | Mastercard-only `allowedOriginRules` (`https://src.mastercard.com`, `https://*.src.mastercard.com`); the callback re-checks `sourceOrigin` against `isAllowedMastercardOrigin`, which is Mastercard-only regardless of what navigation/resource loading allows; rejects non-main-frame and untrusted `sourceOrigin`; requires `WEB_MESSAGE_LISTENER` |
+| `removeWebMessageListener` on detach | Host and branded-button bridges removed when WebViews are destroyed |
+| Host HTML CSP meta | Defence in depth only — `WebMessageListener` origin checks are the primary control. Bundled `c2p-host.html` sets `script-src` to `'self'`, a SHA-256 hash of the substituted bootstrap script, and the exact hosts in [Host allowlist](#host-allowlist) below (no wildcard beyond `*.src.mastercard.com` and the per-network subdomain wildcards listed there). `style-src` keeps `'unsafe-inline'`; `frame-src`/`connect-src`/`img-src`/`font-src` are scoped per host class, not a single wildcard. Sandbox hosts confirmed via on-device CSP violation logs; production Visa/Amex adapter and Discover hosts confirmed via MC's own published production `lib.js` (see [Host allowlist](#host-allowlist)). **The production Mastercard saved-card-art host is not — do not treat this policy as release-ready until it is** |
+| DCF popup handling | `onCreateWindow` opens a child WebView with the same URL policies and hardened settings (no JS bridge on the popup) |
+| Branded button `WebMessageListener` | Same Mastercard origin rules as the host bridge; rejects non-main-frame and untrusted `sourceOrigin` |
+| Branded button HTML CSP meta | Same `script-src`/`frame-src`/`connect-src`/`img-src` policy as the host page. Host-page CSP does not apply to this WebView — this document has its own meta |
 | Branded button message cap | 16 KiB max on `C2pBrandedButtonBridge` postMessage payloads |
 
 ### Host allowlist
 
-| Host pattern | Allowed | Notes |
-|--------------|---------|-------|
-| `sandbox.src.mastercard.com` | Yes | Sandbox MC script and checkout |
-| `src.mastercard.com` | Yes | Production MC script and checkout |
-| `*.src.mastercard.com` | Yes | MC subdomains (DCF, assets); suffix match rejects typosquat hosts like `evil.src.mastercard.com.evil.com` |
-| Any other HTTPS host | No | Blocked in navigation and subresource loads |
+Navigation and subresource loading use related but capability-specific allowlists, split into trust classes below. `isAllowedResourceUrl` permits everything `isAllowedNavigationUrl` does, plus resource-only hosts (the Mastercard asset host and the third-party library CDNs) that have no legitimate reason to be a navigation target — `ClickToPayMcWebViewClient` enforces the navigation policy for main-frame requests in both `shouldOverrideUrlLoading` and `shouldInterceptRequest`, since the latter is also reachable for POST navigation, which `shouldOverrideUrlLoading` is not called for. The WebMessage bridge origin check (`isAllowedMastercardOrigin`) is a **separate, narrower** policy still — only the Mastercard row is valid there, regardless of what this table allows for navigation/resources.
+
+| Host class | Hosts | Allowed for | Why |
+|---|---|---|---|
+| Mastercard | `sandbox.src.mastercard.com`, `src.mastercard.com`, `*.src.mastercard.com` | Navigation, resources, bridge origin | MC script, checkout, DCF; suffix match rejects typosquat hosts like `evil.src.mastercard.com.evil.com` |
+| Mastercard assets | `sbx.assets.mastercard.com` | Resources only (not navigation, not bridge origin) | Saved-card art for a recognized device — an image host, not a script/checkout host |
+| Federated networks | `visa.com`, `discover.com`, `discovercard.com`, `americanexpress.com`, `aexp-static.com` (+ subdomains) | Navigation, resources | MC's unified `lib.js` embeds each network's own communicator/fingerprint iframe and adapter script for identity lookup and enrollment; `aexp-static.com` is Amex's actual adapter host, not `americanexpress.com` |
+| Threat intelligence | `online-metrix.net` (+ subdomains) | Navigation, resources | ThreatMetrix, pulled in by Discover's fingerprint script |
+| Third-party libraries | `code.jquery.com`, `cdn.jsdelivr.net` (exact match, no subdomains) | Resources only (not navigation) | Amex's DCF checkout-window script depends on jQuery/js-cookie served from these public CDNs; pure script dependencies with no `frame-src` entry, so there's no legitimate navigation target here |
+| Any other HTTPS host | — | Blocked everywhere | — |
+
+Production Visa (`secure.checkout.visa.com`) and Amex (`www.aexp-static.com`) adapter script hosts are now in `script-src` (HC-1828), confirmed both statically — MC's production `lib.js` (`src.mastercard.com/srci/integration/2/lib.js`) names these hosts directly in its network-adapter URL map, matching the sandbox bundle's structure — and against live production checkouts, with no CSP violation or CORS/404 for either host. Discover's production hosts (`webapp.src.discover.com`, `src.apis.discover.com`, `content.discovercard.com`) needed no change; they already fall under the `discover.com`/`discovercard.com` wildcards. Native-side, the federated-network suffix match already covered every one of these production hosts before this fix — only the CSP's exact-host `script-src` list was missing them.
+
+Still unverified: the production equivalent of `sbx.assets.mastercard.com` (Mastercard saved-card art) isn't statically referenced in `lib.js` — it's likely constructed at runtime from card data returned by MC's API — so it needs an actual production checkout with a recognized device to confirm, the same way the sandbox host originally was. Discover's fingerprint tag also injects an inline script whose content isn't stable across runs, so it can't be statically hash-allowlisted; that script is expected to keep failing CSP pending Discover/InfoSec input on whether it's required for fraud telemetry or affects checkout behavior.
 
 ### DCF popup WebView
 
@@ -506,10 +521,7 @@ Mastercard device cardholder (DCF) flows may open a child WebView via `onCreateW
 
 ### Accepted risks
 
-`addJavascriptInterface` exposes the native bridge to **all frames** in the WebView, not only the
-trusted MC origin. Phase guards, method allowlist, payload size cap, sensitive-key filter, value
-sanitization, and `removeJavascriptInterface` on detach reduce abuse surface but do not eliminate
-it. This is an **accepted risk** of the MC mobile integration model.
+Host and branded-button traffic use origin-scoped `WebMessageListener` (not `addJavascriptInterface`), so child frames such as the DCF iframe cannot call the native bridge. Host ingress applies method allowlist, UTF-8 size + structure caps, sensitive-key filter, and value sanitization on a serialized background executor (`JSONObject` still fully parses under the byte cap). Branded button intentionally keeps light allowlisted parsing on the main thread with a UTF-8 size gate.
 
 Host HTML loads via `loadDataWithBaseURL` with an HTTPS Mastercard base URL. Main-frame `data:`
 responses in `shouldInterceptRequest` are required for that bootstrap on device WebViews.
@@ -518,7 +530,10 @@ Subresource `data:` loads remain allowed for MC inline assets; top-level navigat
 `shouldInterceptRequest`.
 
 JavaScript, DOM storage, third-party cookies, and multiple windows are enabled because the MC
-`lib.js` SDK and DCF flows require them. CVV for tokenize is collected in native SPL fields and
+`lib.js` SDK and DCF flows require them. Static analysis may still flag `javaScriptEnabled` and
+`allowContentAccess` settings; both are intentional (`javaScriptEnabled` required by MC, content
+access disabled on every load path) and are mitigated by the host allowlist, origin-scoped
+listeners, ingress validation, and teardown. CVV for tokenize is collected in native SPL fields and
 never sent over the JS bridge.
 
 Reference: [Mastercard Unified Checkout Solutions](https://developer.mastercard.com/unified-checkout-solutions/documentation/sdk-reference/mobile/).
@@ -567,12 +582,22 @@ Spreedly/compliance signoff before production.
 public events. The saved-card flow still handles CVV transiently in native SPL fields; new-card and
 enrollment flows handle PAN/CVV transiently before sending to the Mastercard WebView.
 
-During enrollment and new-card checkout the SDK briefly holds PAN/CVV in native memory and passes
-them to the trusted Mastercard WebView host via `evaluateJavascript` for MC `encryptCard` /
-`enrollNewUser`. The WebView host runs only on Mastercard HTTPS origins with hardened settings
-(no file/content access, scheme deny-list, bridge method allowlist). Sensitive data is cleared on
-checkout complete, cancel, failure, WebView detach, and MC checkout branch actions (`CANCEL`,
-`CHANGE_CARD`, `ADD_CARD`, `SWITCH_CONSUMER`, missing/unknown action codes).
+During enrollment and new-card checkout, PAN/CVV are passed transiently from native memory into the
+Mastercard-origin WebView via `evaluateJavascript`, and immediately supplied to MC `encryptCard` /
+`enrollNewUser`. The SDK does not intentionally log, persist, place them on the navigation/resource
+allowlist, or return them through the WebMessage bridge (whose origin check,
+`isAllowedMastercardOrigin`, stays Mastercard-only regardless of what navigation/resources allow —
+see [Host allowlist](#host-allowlist)). Sensitive data is cleared on checkout complete, cancel,
+failure, WebView detach, and MC checkout branch actions (`CANCEL`, `CHANGE_CARD`, `ADD_CARD`,
+`SWITCH_CONSUMER`, missing/unknown action codes).
+
+This host WebView also executes third-party scripts (per-network adapters, ThreatMetrix, and the
+`code.jquery.com`/`cdn.jsdelivr.net` CDNs Amex's adapter depends on) in the same Mastercard-origin
+document that temporarily holds PAN/CVV. Origin-scoped `WebMessageListener` rules stop untrusted
+*frames* from reaching the native bridge, but they don't restrict what a script already loaded into
+this document could do while it runs. That makes the hosts in [Host allowlist](#host-allowlist) part
+of the PAN/CVV trust boundary, not just a network allowlist — vendor/InfoSec should sign off on that
+model (particularly the two public CDN hosts) before this ships to production.
 
 | Data | Where it flows | Merchant exposure |
 |------|----------------|-------------------|
@@ -681,6 +706,8 @@ Demo app route: Main menu → **Click to Pay** (`clicktopay_demo`).
 | Symptom | Check |
 |---------|--------|
 | `Spreedly.init() required` on present | Initialize SDK before `present()` |
+| `C2P_INIT` / `WEB_MESSAGE_LISTENER support` | Update Android System WebView or Chrome from Play (82+); Click to Pay is unsupported without that feature |
+| Branded button error / dimmed UI without crash | Same WebView floor; button reports error via bridge instead of crashing Compose |
 | Tokenize fails after long checkout | `setAutoTokenizeAuthRefresher` + fresh enhanced auth |
 | OTP never arrives | Sandbox email/phone; device network; MC sandbox status |
 | Stale Remember-me cards | `SpreedlyClickToPayCheckout.signOut()` |

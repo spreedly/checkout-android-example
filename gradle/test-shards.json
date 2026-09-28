@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "Canonical test-shard composition. One source for the code-quality workflow",
+    "matrix, the preflight validator, and the staging scripts, so module",
+    "allocation cannot drift between them.",
+    "",
+    "Every non-POM module in gradle/module-catalog.json must appear exactly once.",
+    "scripts/ci/validate-shard-map.sh enforces that before any Test job runs, so",
+    "adding PPCP, Paze or Google Pay fails in seconds with a message naming the",
+    "module rather than after four Test jobs have spent runner-minutes.",
+    "",
+    "Composition is dependency-aware, not balanced on standalone test duration.",
+    "Measured CI shard walls were 241-297s where standalone test times spanned",
+    "5-32s, because checkout, Gradle setup and compiling payments-core dominate.",
+    "So modules are grouped by what a shard must compile anyway."
+  ],
+  "shards": [
+    {
+      "name": "s1-clicktopay",
+      "modules": ["clicktopay", "hostedfields"],
+      "rationale": "clicktopay depends on hostedfields, so this shard compiles hostedfields regardless; testing it here costs no extra compile."
+    },
+    {
+      "name": "s2-paymentsheet-core",
+      "modules": ["paymentsheet", "payments-core"],
+      "rationale": "paymentsheet compiles payments-core anyway, so payments-core's tests ride along instead of paying for a dedicated shard's setup and compile."
+    },
+    {
+      "name": "s3-threeds-apm",
+      "modules": ["threeds", "stripe", "stripe-radar", "braintree"],
+      "rationale": "the four leaf modules that depend only on payments-core; they share one payments-core compile between them."
+    }
+  ]
+}

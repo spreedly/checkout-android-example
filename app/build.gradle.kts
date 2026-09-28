@@ -39,6 +39,7 @@ android {
 
     lint {
         checkReleaseBuilds = false
+        ignoreTestSources = true
     }
 
     compileOptions {
@@ -144,12 +145,12 @@ kotlin {
 
 dependencies {
     // ✅ Use paymentsheet which includes payments-core and hosted-fields
-    implementation("com.spreedly:checkout-paymentsheet:1.3.0")
-    implementation("com.spreedly:checkout-braintree-apm:1.3.0")
-    implementation("com.spreedly:checkout-stripe-apm:1.3.0")
-    implementation("com.spreedly:checkout-stripe-radar:1.3.0")
-    implementation("com.spreedly:checkout-threeds:1.3.0")
-    implementation("com.spreedly:checkout-clicktopay:1.3.0")
+    implementation("com.spreedly:checkout-paymentsheet:1.4.0")
+    implementation("com.spreedly:checkout-braintree-apm:1.4.0")
+    implementation("com.spreedly:checkout-stripe-apm:1.4.0")
+    implementation("com.spreedly:checkout-stripe-radar:1.4.0")
+    implementation("com.spreedly:checkout-threeds:1.4.0")
+    implementation("com.spreedly:checkout-clicktopay:1.4.0")
 
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
