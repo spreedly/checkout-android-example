@@ -26,7 +26,9 @@ SPL fields enforce security automatically:
 - Card number fields block copy, cut, and text selection (paste is allowed)
 - CVV fields block all clipboard operations and text selection
 
-**`SPLTextField` callbacks:** `onChange` receives **AES-encrypted** ciphertext for `FormFieldType.CARD`, `FormFieldType.CVV`, and `FormFieldType.ACCOUNT_NUMBER` only (`FormFieldType.shouldEncrypt()`); all other field types receive **raw** processed text in `onChange`. Do **not** log encrypted strings or treat them as display digits. Use **`onFieldStateChange(HostedFieldState)?`** for iframe-style observability: digit **counts** (`numberLength` / `cvvLength`), `cardScheme`, `isValid`, focus/blur via `HostedFieldEventType`, without parsing ciphertext. Use `onValidationChange` / `hasValidationError` / submit results for gating checkout. Kotlin/Java samples: [Migration from legacy](migration/from-legacy.md#hostedfieldstate--kotlin-samples-compose).
+**`SPLTextField` callbacks:** `onChange` receives **AES-encrypted** ciphertext for `FormFieldType.CARD`, `FormFieldType.CVV`, and `FormFieldType.ACCOUNT_NUMBER` only (`FormFieldType.shouldEncrypt()` is deprecated / LIBRARY_GROUP-restricted — behavior unchanged); all other field types receive **raw** processed text in `onChange`. Do **not** log encrypted strings or treat them as display digits. Use **`onFieldStateChange(HostedFieldState)?`** for iframe-style observability: digit **counts** (`numberLength` / `cvvLength`), `cardScheme`, `isValid`, focus/blur via `HostedFieldEventType`, without parsing ciphertext. Use `onValidationChange` / `hasValidationError` / submit results for gating checkout. Kotlin/Java samples: [Migration from legacy](migration/from-legacy.md#hostedfieldstate--kotlin-samples-compose).
+
+**Card scheme detection (CARD field):** Scheme detection and CVV-length coupling run on **ciphertext stored by the SDK**, not on plaintext you pass from a custom `EditText`. Wire the PAN through **`SPLTextField(FormFieldType.CARD(...))`** so `onChange` delivers encrypted values to `sdk.callbacks.onCardNumberChange`. If you call `onCardNumberChange` with raw digit strings (headless demos, manual callback wiring), **`HostedFieldState.cardScheme` stays `null`** and CVV rules fall back to the unknown-scheme default until valid SDK ciphertext is stored — this is intentional after field-encryption hardening. See [security.md](security.md#card-scheme-only-storage).
 
 For initial SDK setup, see [getting-started.md](getting-started.md).
 
@@ -416,6 +418,20 @@ ExpiryValidationUtils.isValidCombinedExpiry("", "") // true — blank dates allo
 ## Payment Submission
 
 Use `sdk.createCreditCard()` to submit the form. This is a suspend function and must be called from a coroutine scope.
+
+### Submission validation (`formFields`)
+
+The `formFields` argument is the **submission validation manifest**: only field types you list are considered at tokenize time.
+
+| Rule | Behavior |
+|------|----------|
+| **Required** (`required = true`) | Always validated before tokenization. |
+| **Optional encrypted CHD** (`CARD`, `CVV`, `ACCOUNT_NUMBER` with `required = false`) | Validated only when the SDK has **non-blank stored ciphertext** for that field. Corrupt or invalid ciphertext returns `ValidationFailed` and does **not** tokenize with empty decrypted values. |
+| **Optional non-CHD** (for example `NAME`, `ZIP`, address fields with `required = false`) | **Not** submission-gated by `createCreditCard()` / `createBankAccount()` — same as pre–field-encryption-hardening behavior. |
+
+`ValidationFailed.invalidFields` lists every field that was validated and failed (including optional corrupt CHD).
+
+**Pre-submit UI vs submit:** `areAllFieldsValid(formFields)` runs validation on **every** listed field (including optional non-CHD). That can disable a Pay button even when `createCreditCard()` would proceed. For optional non-CHD in `formFields`, prefer field-level `HostedFieldState.isValid` / `onValidationChange` for UI, and treat `createCreditCard()` as the authoritative submit gate. See [ACH Bank Account](ach-bank-account.md) for the same `formFields` pattern on ACH.
 
 ### Basic Submission
 

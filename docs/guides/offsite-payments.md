@@ -317,7 +317,7 @@ private fun observePaymentResults() {
                     handleCompletion(state, token)
                 }
                 is PaymentResult.Failed -> {
-                    val message = result.message ?: "Payment failed"
+                    val message = result.getDescription()
                     val state = result.state // e.g., "gateway_processing_failed"
                     handleFailure(message, state)
                 }
@@ -1083,7 +1083,7 @@ sdk.paymentResultFlow.collect { result ->
                     showError("Payment failed. Please try again.")
                 }
                 else -> {
-                    showError(result.message ?: "Payment failed")
+                    showError(result.getDescription())
                 }
             }
         }
@@ -1356,7 +1356,7 @@ when (result) {
             // Soft success - customer will pay offline
             showSuccess("Payment initiated. Customer will complete payment offline.")
         } else {
-            showError(result.message)
+            showError(result.getDescription())
         }
     }
 }
@@ -1619,12 +1619,13 @@ data class Failed(
     val errorType: ErrorType,
     val message: String?,
     val state: String? = null,  // Transaction state (e.g., "gateway_processing_failed")
-    val originalError: Throwable? = null,
+    val originalError: Throwable? = null,  // Unsanitized; do not log message or stack
     // ... other fields
 )
 ```
 
 - `state` contains the transaction state when the failure was detected via status API
+- **Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](error-handling.md#error-logging-for-debugging).
 
 ---
 

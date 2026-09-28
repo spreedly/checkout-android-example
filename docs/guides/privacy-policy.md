@@ -15,11 +15,12 @@ Spreedly API (`core.spreedly.com`) over HTTPS:
 |----------|--------|
 | Authentication | Environment key, nonce, timestamp, HMAC signature, certificate token |
 | Card details | Card number, CVV/CVC, expiry month and year |
+| Bank account | Account number (encrypted in memory), routing number, account type, holder type, optional bank name |
 | Cardholder info | First name, last name, full name, company |
 | Billing address | Address lines 1--2, city, state, ZIP, country, phone number |
 | Shipping address | Address lines 1--2, city, state, ZIP, country, phone number |
 | Optional fields | Email, custom metadata key-value pairs, `retainOnSuccess` flag |
-| Mandate | Opaque merchant-supplied mandate object, forwarded verbatim. May carry merchant or consumer identifiers, so it is treated as do-not-log: never written to logs or analytics, and never persisted on the device |
+| Mandate | Opaque merchant-supplied mandate object, forwarded verbatim. Mandate **values** are do-not-log and are never persisted on the device; request `toString` redacts them. Conversion diagnostics may include structural mandate **key paths**. Click to Pay unexpected local conversion failures expose only a static public failure message. |
 
 For offsite payment methods (PayPal, Pix, Boleto, etc.), the same
 authentication fields are sent along with the payment method type, email,
@@ -86,15 +87,16 @@ The SDK does **not** collect:
 
 ### Payment data
 
-1. Card numbers and CVV values are encrypted in memory using AES-128-GCM
-   with a per-instance random key that is never persisted to disk.
+1. Card numbers, CVV values, and bank account numbers are encrypted in memory using AES-128-GCM
+   with a per-process random key (one `SecureRandom` 128-bit key for the process, not per SDK
+   instance) that is never persisted to disk.
 2. Encrypted values are decrypted only when the SDK needs the plaintext for
    validation, card scheme detection, or API submission.
 3. Data is transmitted over HTTPS to `core.spreedly.com` and is not stored
    locally in SharedPreferences, databases, or the file system.
 4. Once the Spreedly API returns a payment method token, the raw card data
    is no longer needed and exists only in process memory until garbage
-   collected.
+   collected. Recache CVV is held in process memory only (not in saved instance state).
 
 ### Telemetry data
 
@@ -102,8 +104,10 @@ The SDK does **not** collect:
    values that may have been included in error messages.
 2. Sanitized logs are batched by the Datadog SDK and uploaded approximately
    every 5 seconds.
-3. No card numbers, CVV values, cardholder names, or billing addresses are
-   ever included in telemetry.
+3. SDK-controlled logging and telemetry paths run through `LogSanitizer` for supported
+   PAN/CVV/token/credential patterns. That is not a guarantee that every string a merchant
+   logs, or every residual public error getter, is free of sensitive data. See
+   [Security](security.md).
 
 ## Third-Party Services
 
@@ -125,13 +129,14 @@ policies.
 
 The SDK implements multiple layers of protection for payment data:
 
-- **In-memory encryption** -- AES-128-GCM for card numbers and CVV values
+- **In-memory encryption** -- AES-128-GCM for card numbers, CVV, and bank account numbers
 - **No local persistence** -- sensitive data is never written to disk
 - **Clipboard blocking** -- copy/cut disabled on card and CVV fields; paste disabled on CVV only
 - **Screenshot prevention** -- `FLAG_SECURE` applied to payment UI
 - **CVV auto-clear** -- CVV field is cleared after 3 minutes in background
-- **Log sanitization** -- card numbers, CVV, tokens, emails, and secrets
-  are redacted from all log output
+- **Log sanitization** -- SDK-controlled log APIs redact supported card-number, labeled CVV,
+  token, email, and secret patterns before Logcat and Datadog. Residual surfaces are listed in
+  [Security](security.md).
 - **HTTPS only** -- no plaintext HTTP endpoints
 
 For full details, see the [Security](security.md) guide.
@@ -158,11 +163,12 @@ policies:
 
 The SDK is designed to support PCI DSS compliance:
 
-- Sensitive payment data (card numbers, CVV) is never logged
-- All card data is encrypted in process memory
+- SDK-controlled logging paths are sanitized for supported sensitive-data patterns
+- Card and bank account CHD is encrypted in process memory
 - No card data is persisted to disk or local storage
 - Transmission uses HTTPS exclusively
-- Log sanitization prevents accidental exposure in Logcat or Datadog
+- Log sanitization reduces accidental exposure in Logcat or Datadog; it does not certify PCI DSS
+  scope. Merchants confirm scope with their QSA or acquirer.
 
 See the [Security](security.md) guide for the complete list of PCI
 compliance controls.

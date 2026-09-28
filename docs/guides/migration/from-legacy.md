@@ -17,7 +17,7 @@ The Checkout Android SDK replaces both the old native SDK and WebView-based appr
 
 - Jetpack Compose UI with full theming and dark mode support
 - Server-side authentication (no secrets on-device)
-- PCI scope reduction (sensitive data never touches merchant code)
+- Designed to minimize PAN/CVV exposure in merchant UI code (confirm PCI scope with your QSA/acquirer)
 - ACH bank account tokenization
 - 3D Secure authentication (Forter global and gateway-specific)
 - Alternative payment methods (Stripe APM, Braintree APM)
@@ -42,7 +42,7 @@ See the [README compatibility table](../../../README.md#compatibility) for minim
 | **UI** | XML Views (`SecureForm`, `SecureCreditCardField`) / WebView | Jetpack Compose (`SPLTextField`, `SpreedlyBottomSheet`) |
 | **Async model** | RxJava `Single` / JS callbacks | Coroutines (`suspend fun`) + `SharedFlow<PaymentResult>` |
 | **Authentication** | API secret stored on-device: `SpreedlyClient.newInstance("key", "secret", true)` | Server-generated signed params per session (nonce, signature, certificateToken, timestamp) -- no secret on device |
-| **PCI scope** | Merchant code constructs `CreditCardInfo` with raw card data / WebView handles it in JS | Sensitive data flows exclusively through SDK secure components (`SPLTextField` / `sdk.callbacks`) -- never in merchant code |
+| **PCI scope** | Merchant code constructs `CreditCardInfo` with raw card data / WebView handles it in JS | Sensitive fields are intended to flow through SDK secure components (`SPLTextField` / `sdk.callbacks`); confirm scope with your QSA/acquirer |
 | **Dependencies** | `com.spreedly:client` / `express` / `securewidgets` | Multi-module: `checkout-payments-core` / `checkout-hostedfields` / `checkout-paymentsheet` + optional `checkout-threeds`, `checkout-braintree-apm`, `checkout-stripe-apm`, `checkout-stripe-radar` |
 | **Result delivery** | `onActivityResult` with `EXTRA_PAYMENT_METHOD_TOKEN` / JS bridge | `sdk.paymentResultFlow: SharedFlow<PaymentResult>` |
 
@@ -206,7 +206,7 @@ The old SDK let merchant code construct `CreditCardInfo` objects containing raw 
 - **`SPLTextField`** composables write card data to internal encrypted state
 - **`sdk.callbacks`** methods update internal `PaymentSheetState`
 
-The `createCreditCard()` and `createPaymentMethod()` methods read from that internal state. Your code never handles raw card numbers, CVVs, or account numbers directly. This is a PCI scope reduction by design.
+The `createCreditCard()` and `createPaymentMethod()` methods read from that internal state. Prefer `SPLTextField` so merchant UI code does not handle raw card numbers, CVVs, or account numbers directly. Confirm PCI scope with your QSA/acquirer.
 
 ### Option A: Express Checkout (pre-built bottom sheet)
 
@@ -510,7 +510,7 @@ is PaymentResult.Failed -> {
             // Connection, timeout, IO errors
         }
         PaymentResult.Failed.ErrorType.UNKNOWN_ERROR -> {
-            // Unexpected -- result.originalError has the Throwable
+            // Unexpected — use getDescription() for UI; do not log originalError
         }
     }
 }
@@ -520,11 +520,14 @@ Key properties on `PaymentResult.Failed`:
 - `errorType` -- `API_ERROR`, `NETWORK_ERROR`, or `UNKNOWN_ERROR`
 - `apiError: SpreedlyApiError?` -- categorized API error type
 - `validationErrors: List<ValidationError>` -- field-level errors with `fieldName`, `errorKey`, `errorMessage`
-- `message: String?` -- primary error message
+- `message: String?` -- primary error message (UI copy; do not log for debugging)
 - `statusCode: Int?` -- HTTP status code
 - `getDescription()` -- user-friendly error string
 - `hasValidationErrors()` -- whether field-level errors are present
 - `getValidationErrors(fieldName)` -- errors for a specific field
+- `toString()` -- log-safe (`errorType`, plus `statusCode` / `apiError` / `state` when present); omits `message`, bodies, and validation lists
+
+**Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only — not `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](../error-handling.md#error-logging-for-debugging).
 
 For recache results (`Result<PaymentMethodResponse, SpreedlyNetworkError>`), use `SpreedlyErrorMessages.getUserFriendlyMessage(error)` to get a display-ready string.
 

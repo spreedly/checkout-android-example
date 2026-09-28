@@ -21,11 +21,11 @@ data class Failed(
     val errorType: ErrorType,           // Type of error (API, Network, Unknown)
     val message: String?,               // Primary error message
     val state: String?,                 // Transaction state (offsite payments)
-    val originalError: Throwable?,      // Original exception (for debugging)
+    val originalError: Throwable?,      // Unsanitized; do not log message or stack
     val apiError: SpreedlyApiError?,    // Specific API error type
     val statusCode: Int?,               // HTTP status code
     val validationErrors: List<ValidationError>, // Field-specific errors
-    val rawErrorResponse: String?       // Complete error response (debugging)
+    val rawErrorResponse: String?       // Not wire JSON — do not parse. Sanitized via Failed.fromNetworkError
 )
 ```
 
@@ -38,7 +38,7 @@ data class Failed(
 - Only allowlisted validation field names are included
 - Error messages are sanitized and length-bounded
 
-Use `errorType`, `apiError`, `statusCode`, `message`, and `validationErrors` for merchant logging — not raw backend bodies. See [ACH Bank Account](ach-bank-account.md#handling-results).
+Log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging (see [Error Logging for Debugging](#2-error-logging-for-debugging)). Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [ACH Bank Account](ach-bank-account.md#handling-results).
 
 Immediate `createBankAccount()` return values:
 
@@ -230,22 +230,24 @@ SpreedlyApiError.VALIDATION_ERROR -> {
 
 **What it means:** Connection issues, timeouts, or other network problems.
 
+SDK-built failures set `errorType` to `NETWORK_ERROR` and sanitize `message` (for example
+`Network error: NO_INTERNET` or `Network error: IO_ERROR`) from the internal network
+error’s log-safe summary — not from raw exception text. **Do not** branch on substrings like
+`"timeout"` or `"connection"` in `message`; those heuristics will not match. Use
+`getDescription()` for UI and `toString()` for logs (see
+[Error Logging for Debugging](#2-error-logging-for-debugging)).
+
 **How to handle:**
 ```kotlin
 PaymentResult.Failed.ErrorType.NETWORK_ERROR -> {
-    when {
-        error.message?.contains("timeout") == true -> {
-            showRetryableError("Request timed out. Please try again.")
-        }
-        error.message?.contains("connection") == true -> {
-            showRetryableError("Connection failed. Please check your internet.")
-        }
-        else -> {
-            showRetryableError("Network error occurred. Please try again.")
-        }
-    }
+    // Retryable — show sanitized copy; log error.toString() only
+    showRetryableError(error.getDescription())
 }
 ```
+
+For finer-grained copy (optional), map on **`errorType`** only, or inspect upstream
+`SpreedlyNetworkError` before it is mapped to `PaymentResult.Failed` inside your own
+network layer — not on `Failed.message` substring heuristics.
 
 ## Field-Specific Error Handling
 
@@ -390,7 +392,7 @@ For `PaymentResult.Failed` (from `paymentResultFlow`), use the built-in properti
 ```kotlin
 when (val result = paymentResult) {
     is PaymentResult.Failed -> {
-        val message = result.message ?: "Payment failed"
+        val message = result.getDescription()
         val apiError = result.apiError // SpreedlyApiError? for fine-grained handling
     }
 }
@@ -423,33 +425,25 @@ private fun getHumanReadableError(apiError: SpreedlyApiError): String = when (ap
 
 ### 2. Error Logging for Debugging
 
+Use `toString()` for logs and `getDescription()` for UI copy. Log
+`errorType`, `apiError`, `statusCode`, and `toString()` only. Never log
+`message`, `rawErrorResponse`, or `originalError` (including `originalError.message`) —
+merchant-constructed `Failed(...)` is unsanitized, and `message` can still be
+`[REDACTED]` or over-redacted on the SDK path. `PaymentResult.Failed.toString()` is
+log-safe (omits `message`, bodies, and `originalError`). Do not log getters.
+
 ```kotlin
 private fun logErrorForDebugging(error: PaymentResult.Failed) {
-    Log.e("PaymentError", buildString {
-        appendLine("Error Type: ${error.errorType}")
-        appendLine("API Error: ${error.apiError}")
-        appendLine("Status Code: ${error.statusCode}")
-        appendLine("Message: ${error.message}")
-        
-        if (error.hasValidationErrors()) {
-            appendLine("Validation Errors:")
-            error.validationErrors.forEach { validationError ->
-                appendLine("  ${validationError.fieldName}: ${validationError.errorMessage}")
-            }
-        }
-        
-        // rawErrorResponse is sanitized by the SDK but should only be logged in debug builds
-        if (BuildConfig.DEBUG) {
-            error.rawErrorResponse?.let { response ->
-                appendLine("Raw Response: $response")
-            }
-            error.originalError?.let { throwable ->
-                appendLine("Original Exception: ${throwable.message}")
-            }
-        }
-    })
+    Log.e("PaymentError", error.toString())
 }
+
+private fun userFacingMessage(error: PaymentResult.Failed): String =
+    error.getDescription()
 ```
+
+**3DS challenge failures** use the same logging contract on
+`ThreeDSChallengeResult.Failed`: log `errorType` and `toString()` only; show
+`getDescription()` for UI. See [3D Secure Global Integration](3ds-global.md#failed).
 
 ### 3. Graceful Degradation
 

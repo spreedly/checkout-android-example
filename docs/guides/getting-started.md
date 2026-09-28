@@ -91,7 +91,7 @@ lifecycleScope.launch {
                 // Send token to your backend to complete the transaction
             }
             is PaymentResult.Failed -> {
-                val error = result.message
+                val error = result.getDescription()
                 // Show error to user
             }
             is PaymentResult.Canceled -> {

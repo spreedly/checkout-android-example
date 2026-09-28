@@ -106,7 +106,7 @@ SpreedlyBankAccountBottomSheet(
                 // result.token contains the payment method token
             }
             is PaymentResult.Failed -> {
-                // result.message contains the error
+                // result.getDescription() for UI; log result.toString() only
             }
             is PaymentResult.Canceled -> {
                 // user dismissed the sheet (swipe / back)
@@ -447,6 +447,7 @@ Results are delivered by different channels depending on the integration path.
 
 - **Drop-in** — every terminal (`Completed`, `Failed`, `Canceled`) is delivered to `onPaymentResult`, scoped to that sheet’s surface id. Shared-flow collectors still see `Completed`/`Failed`. **Cancellation is surface-only.**
 - **Headless / direct** — `Completed` and `Failed` on `paymentResultFlow`; no user-cancel concept. Unexpected SDK failures return immediate `PaymentProcessingResult.Failed(UNEXPECTED_ERROR)` while the sanitized `PaymentResult.Failed` is delivered asynchronously. ACH network/API failures never expose `originalError` or `rawErrorResponse` on public results.
+- **Logging** — log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging (see [Error Handling](error-handling.md#error-logging-for-debugging)). Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"` — merchant-built `Failed` getters may still hold unsanitized strings; `Failed.toString()` omits them.
 
 **Programmatic hide vs user-cancel**: setting `show = false` from the parent hides the sheet and clears SDK state, but does **not** call `onPaymentResult(Canceled)`. Only a swipe/back dismiss triggered by the user produces a `Canceled` result. If your UI needs to distinguish "user abandoned" from "parent closed the sheet", track that distinction in your own state rather than relying on `Canceled` alone.
 
@@ -493,7 +494,7 @@ SpreedlyBankAccountBottomSheet(
     onPaymentResult = { result ->
         when (result) {
             is PaymentResult.Completed -> { /* result.token */ }
-            is PaymentResult.Failed -> { /* result.message */ }
+            is PaymentResult.Failed -> { /* result.getDescription() for UI */ }
             is PaymentResult.Canceled -> { /* user dismissed the sheet */ }
             PaymentResult.Initial -> {}
         }
@@ -559,6 +560,7 @@ Card payment sheet still resets only on open (intentional difference).
 ## Security
 
 - Account numbers are encrypted in memory and auto-cleared after 3 minutes when the app is backgrounded (same as CVV).
+- ACH validation is **ciphertext-only**: `isAchAccountNumberFieldValid` requires an SDK-encrypted account number in `BankAccountState`. `SPLTextField(FormFieldType.ACCOUNT_NUMBER)` already encrypts before `onAccountNumberChange`; do not pass raw account digits to `sdk.bankAccountCallbacks` or construct `AccountNumberValidator` with plaintext for production paths.
 - Routing numbers are not auto-cleared (they are semi-public identifiers).
 - `SpreedlyBankAccountBottomSheet` and `BankAccountSheet` both apply `SecureScreen` (FLAG_SECURE) to prevent screenshots.
 
