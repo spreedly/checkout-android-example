@@ -2,7 +2,7 @@
 
 ## Overview
 
-CVV Recaching allows users to update the CVV for a previously saved payment method without re-entering complete card details. The SDK provides a secure, customizable UI (bottom sheet or dialog) for CVV entry, ensuring PCI compliance and a seamless user experience.
+CVV Recaching allows users to update the CVV for a previously saved payment method without re-entering complete card details. The SDK provides a secure, customizable UI (bottom sheet or dialog) for CVV entry, designed to minimize cardholder data exposure in your app code.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ CVV Recaching allows users to update the CVV for a previously saved payment meth
 
 ## Why Use Recaching?
 
-**Problem**: CVV values cannot be stored long-term due to PCI compliance requirements, but many payment processors require a fresh CVV for repeat transactions.
+**Problem**: Verification codes cannot be retained after authorization (PCI SSC FAQ 1319), but many payment processors require a fresh CVV for repeat transactions.
 
 **Solution**: Recaching lets customers update the CVV for saved cards without re-entering full card details.
 
@@ -30,9 +30,9 @@ CVV Recaching allows users to update the CVV for a previously saved payment meth
 - You want SDK-managed secure CVV input
 
 ### Benefits
-- **PCI Compliant**: CVV never passes through your application code
+- **Reduced CHD exposure**: CVV is entered in SDK UI, not stored in your app code
 - **Better UX**: No need to re-enter full card details
-- **Secure**: SDK handles all sensitive data
+- **Secure**: SDK handles sensitive CVV input with screen-capture protection
 - **Customizable**: Match your brand's look and feel
 
 ---
@@ -748,7 +748,7 @@ For the full list of SDK security features, see the [Security Guide](security.md
 2. **No CVV Storage**: CVV values are never stored or logged
 3. **SDK-Managed Input**: CVV never passes through your application code
 4. **HTTPS Only**: All API calls use secure connections
-5. **PCI Compliant**: Designed to maintain PCI DSS compliance
+5. **PCI scope:** Designed to minimize CVV exposure in your app; merchants confirm retention and scope with their QSA/acquirer (see [security.md](security.md)).
 
 ### Security Best Practices
 

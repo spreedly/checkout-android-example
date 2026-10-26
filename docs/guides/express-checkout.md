@@ -312,7 +312,7 @@ This is what you collect. Emitted after the tokenization API call completes (or 
 | `Initial` | -- | Default state before any payment |
 | `Completed` | `token`, `paymentMethodResponse`, `shouldRetain`, `state`, `nonce`, `deviceData` | Tokenization succeeded |
 | `Canceled` | -- | User dismissed the bottom sheet |
-| `Failed` | `errorType`, `message`, `state`, `apiError`, `statusCode`, `validationErrors`, `rawErrorResponse` | Tokenization failed. SDK path: strings sanitized via `fromNetworkError`; do not log getters — use `toString()` (see [Error Handling](error-handling.md#error-logging-for-debugging)). |
+| `Failed` | `errorType`, `message`, `state`, `apiError`, `statusCode`, `validationErrors`, `rawErrorResponse` | Tokenization failed. SDK path: strings sanitized via `fromNetworkError`; do not log getters — use `toString()` (see [Error Handling](error-handling.md#2-error-logging-for-debugging)). |
 
 ```kotlin
 sdk.paymentResultFlow.collect { result ->
@@ -489,7 +489,9 @@ For full design system documentation, see [Theme & Styling](theme-and-styling.md
 
 ### Additional Fields
 
-Add address fields using `ConfigurableFormField`:
+Add address fields using `ConfigurableFormField`. `OptionalFieldType` has **26** catalogue entries (billing, shipping, email, company, country, phone, and canonical Checkout Web SDK keys). Default presets below still cover the **five legacy billing address** fields only — opt in to the rest via `additionalFields`.
+
+Drop-in sheet builds tokenize `formFields` via `getFormFields()` and uses callback-owned catalogue wiring (`writeCatalogueValueToSdk = false`). For hosted-wins merge, pluck rules, char limits, custom `SPLTextField` catalogue paths, and **`Spreedly.addValidation` custom validators**, see [Custom payment forms](custom-payment-forms.md#custom-additional-field-validators).
 
 ```kotlin
 SpreedlyBottomSheet(

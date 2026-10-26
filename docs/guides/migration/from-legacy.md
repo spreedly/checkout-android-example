@@ -377,7 +377,46 @@ fun CustomPaymentForm(sdk: Spreedly) {
 
 **Java callers**: Use `HostedFieldsJavaHelper` to mount a default card form inside a `ComposeView`.
 
-See the [Custom Payment Forms guide](../custom-payment-forms.md) for the full field reference, validation patterns, and bank account fields.
+See the [Custom Payment Forms guide](../custom-payment-forms.md) for the full field reference, validation patterns, bank account fields, canonical tokenize keys, and custom validators.
+
+**Custom validators:** Register on the **same** `Spreedly` instance as your hosted fields. Android is **fail-closed** at tokenize (unlike web fail-open). Full allowlist, blur vs tokenize behavior, and Pay enablement patterns are in the [Custom payment forms guide](../custom-payment-forms.md#custom-additional-field-validators).
+
+**Kotlin (instance extension — preferred when you hold `sdk`):**
+
+```kotlin
+sdk.addValidation(AdditionalField.ZIP_CODE) { value, fields ->
+    val country = fields[AdditionalField.COUNTRY].orEmpty()
+    val valid = when (country.uppercase()) {
+        "US" -> value.matches(Regex("^\\d{5}(-\\d{4})?$"))
+        else -> value.length in 1..15
+    }
+    CustomValidationResult(valid, if (valid) null else "Invalid postal code")
+}
+
+sdk.removeValidation(AdditionalField.ZIP_CODE)
+
+// On Pay, refresh cross-field rules when dependencies change (country → zip):
+if (sdk.runCustomValidationBeforeSubmit(formFields, additionalFields)) return
+```
+
+**Java (`@JvmStatic` companion — same registry as Kotlin):**
+
+```java
+Spreedly.addValidation(AdditionalField.ZIP_CODE, (value, fields) -> {
+    String country = fields.getOrDefault(AdditionalField.COUNTRY, "");
+    if (!"US".equalsIgnoreCase(country)) {
+        return new CustomValidationResult(true, null);
+    }
+    boolean valid = value.matches("^\\d{5}(-\\d{4})?$");
+    return new CustomValidationResult(valid, valid ? null : "Invalid postal code");
+});
+
+Spreedly.removeValidation(AdditionalField.ZIP_CODE);
+```
+
+**Custom Pay buttons:** Call `runCustomValidationBeforeSubmit(formFields, additionalFields)` **before** `areAllFieldsValid()` (when used) and **`createCreditCard()`** with the same maps you pass to tokenize. `CheckoutButton` runs `beforeSubmit()` → `createCreditCard` directly and does **not** call `runCustomValidationBeforeSubmit()` or `areAllFieldsValid()` on click — custom validators run inside `createCreditCard` and a failure returns `ValidationFailed`. See the guide Pay enablement section.
+
+String wire keys (`"zip"`, `"shipping_state"`, …) still work for web parity; prefer `AdditionalField` enum overloads to avoid typos.
 
 ### Understanding the "no raw card data" change
 
@@ -527,7 +566,7 @@ Key properties on `PaymentResult.Failed`:
 - `getValidationErrors(fieldName)` -- errors for a specific field
 - `toString()` -- log-safe (`errorType`, plus `statusCode` / `apiError` / `state` when present); omits `message`, bodies, and validation lists
 
-**Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only — not `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](../error-handling.md#error-logging-for-debugging).
+**Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only — not `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](../error-handling.md#2-error-logging-for-debugging).
 
 For recache results (`Result<PaymentMethodResponse, SpreedlyNetworkError>`), use `SpreedlyErrorMessages.getUserFriendlyMessage(error)` to get a display-ready string.
 
@@ -656,7 +695,7 @@ Complete checklist of SDK APIs available to merchants. Use this to confirm you'v
 | `ALLOW_BLANK_NAME` | `false` | Skip name field validation |
 | `ALLOW_BLANK_DATE` | `false` | Skip expiry date validation |
 | `ALLOW_EXPIRED_DATE` | `false` | Accept past expiry dates |
-| `ALLOW_INTERNATIONAL_ZIP_CODES` | `true` | `true` = international postal codes; `false` = US numeric ZIP only |
+| `ALLOW_INTERNATIONAL_ZIP_CODES` | `true` | No-op for built-in validation. The SDK no longer applies a ZIP/postal-code format check — it accepts any value up to the field character limit, matching Checkout Web SDK parity. Register your own rule with `Spreedly.addValidation(AdditionalField.ZIP_CODE) { ... }` if you need a specific format enforced. |
 
 ### Headless `SPLTextField` (Compose)
 

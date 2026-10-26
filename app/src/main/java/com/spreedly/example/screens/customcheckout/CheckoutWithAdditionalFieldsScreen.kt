@@ -137,13 +137,6 @@ fun CheckoutWithAdditionalFieldsScreen(
         else -> ImeAction.Next
     }
 
-    // Initialize SDK only once when screen is first created
-    LaunchedEffect(Unit) {
-        if (!sdk.isInitialized) {
-            viewModel.initializeSDKIfNeeded()
-        }
-    }
-
     // SDK initialization and payment result handling is now managed by ViewModel
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -333,6 +326,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.NAME) },
                         imeAction = getImeAction(AdditionalFieldType.NAME),
                         shouldFocus = focusedFieldType == AdditionalFieldType.NAME,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -346,6 +340,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.CITY) },
                         imeAction = getImeAction(AdditionalFieldType.CITY),
                         shouldFocus = focusedFieldType == AdditionalFieldType.CITY,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -359,6 +354,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.STATE) },
                         imeAction = getImeAction(AdditionalFieldType.STATE),
                         shouldFocus = focusedFieldType == AdditionalFieldType.STATE,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -372,6 +368,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.ADDRESS_LINE_1) },
                         imeAction = getImeAction(AdditionalFieldType.ADDRESS_LINE_1),
                         shouldFocus = focusedFieldType == AdditionalFieldType.ADDRESS_LINE_1,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -385,6 +382,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.ADDRESS_LINE_2) },
                         imeAction = getImeAction(AdditionalFieldType.ADDRESS_LINE_2),
                         shouldFocus = focusedFieldType == AdditionalFieldType.ADDRESS_LINE_2,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -398,6 +396,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         onImeAction = { handleFieldSubmit(AdditionalFieldType.ZIP) },
                         imeAction = getImeAction(AdditionalFieldType.ZIP),
                         shouldFocus = focusedFieldType == AdditionalFieldType.ZIP,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -444,6 +443,7 @@ fun CheckoutWithAdditionalFieldsScreen(
                         sdk = sdk,
                         isInitializing = isInitializing,
                         retainOnSuccess = shouldRetainPaymentMethod,
+                        beforeSubmit = { viewModel.ensureFreshAuthBeforePayment() },
                     )
 
                     RetokenizeCard(

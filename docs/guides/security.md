@@ -11,8 +11,8 @@ this guide and [error-handling.md](error-handling.md) for safe integration.
 ## Screenshot and Screen Recording Prevention
 
 The SDK sets `FLAG_SECURE` on the host window whenever payment UI is visible.
-`FLAG_SECURE` prevents secure window content from appearing in screenshots
-and non-secure displays.
+This prevents secure window content from appearing in screenshots and on
+non-secure displays (for example external monitors without secure output).
 
 Ownership is reference-counted per window: overlapping secure surfaces (for
 example a payment sheet under a 3-D Secure challenge) keep the flag until the
@@ -71,10 +71,9 @@ fun MyPaymentScreen() {
 
 ### Limitations
 
-`FLAG_SECURE` prevents secure window content from appearing in screenshots
-and non-secure displays. Protection against screen recording, screen sharing,
-overlays, rooted devices, and OEM-specific capture mechanisms can vary by
-Android version, device, and capture mechanism.
+`FLAG_SECURE` is not a guarantee on every device or capture path. Protection against
+screen recording, screen sharing, overlays, rooted devices, and OEM-specific capture
+mechanisms can vary by Android version, device, and capture mechanism.
 
 For additional protection, consider server-side checks via Play Integrity
 App Access Risk.
@@ -95,6 +94,15 @@ Encryption is applied automatically through the `Encryptor` interface:
 - `DefaultEncryptor.decryptValue()` decrypts only when the SDK itself needs
   the plaintext (validation, scheme detection, API submission).
 - All other field types (name, expiry, ZIP) pass through unencrypted.
+
+**ZIP/postal-code input is intentionally unfiltered** (Checkout Web SDK parity — see
+[Custom payment forms](custom-payment-forms.md#character-limits-formfieldcharlimits)):
+`StandardZipCodeValidator` accepts any Unicode value subject only to required-ness and length —
+including whitespace/control characters (tab, newline, CR), zero-width and bidirectional-formatting
+characters, and combining-mark sequences, not only visibly-rendered ones. This is not itself a
+vulnerability in this SDK layer, but merchants placing ZIP values into logs, HTTP headers, CSV
+exports, or terminal output should apply context-appropriate encoding/sanitization at that
+boundary — the same way any other untrusted user-supplied string would be handled.
 
 `@RestrictTo(LIBRARY_GROUP)` and `@Deprecated` on the encryption surfaces are
 **lint-only** — symbols remain in the published ABI. Public `decryptAES` / `KEY`
@@ -121,6 +129,106 @@ backgrounded for **3 minutes**, the following fields are automatically cleared:
 
 Routing numbers are not auto-cleared because they are semi-public bank identifiers.
 
+### Custom additional-field validators
+
+This path is **PCI-conscious**: validators receive a PCI-stripped `fields` snapshot, blur
+errors are sanitized, and tokenize egress stays generic. That is not a claim of PCI SSC
+Secure Software assessment or merchant PCI compliance — confirm scope with your QSA/acquirer.
+
+Merchants can register cross-field rules on the **29 allowlisted wire keys** (excludes PAN,
+CVV/CVC, expiry, and ACH bank fields; includes cardholder name) with `Spreedly.addValidation` /
+`removeValidation`. See [Custom payment forms — Custom additional-field validators](custom-payment-forms.md#custom-additional-field-validators) for integration samples.
+
+**Threading contract:** Call `addValidation` / `removeValidation`, hosted blur, and
+`runCustomValidationBeforeSubmit` on the **main thread** (those APIs are annotated `@MainThread`).
+Validators execute **synchronously on the thread that invokes validation**. Hosted blur runs
+them on the main thread. `CheckoutButton` calls `createCreditCard` from its main-thread
+coroutine, so that path runs them on the main thread too — it does not run a separate preflight.
+A direct `createCreditCard` / `createPaymentMethod` follows the **caller coroutine context**
+(for example IO if the merchant wrapped tokenize in `withContext(Dispatchers.IO)`). Keep
+callbacks **fast, non-blocking, and thread-safe** — do not assume a UI thread during direct
+tokenize.
+
+#### Tokenize egress (merchant messages never leak)
+
+Merchant `CustomValidationResult.errorMessage` **never** appears on tokenize `Failed`, headless
+`Result.Error`, logs, or telemetry. Inline blur and submit preflight UI may still show a
+**sanitized** merchant message.
+
+| Surface | Merchant `CustomValidationResult.errorMessage` | Notes |
+|---------|--------------------------------------------------|-------|
+| Hosted blur field UI | May show **sanitized** message (length-capped) | Via `LogSanitizer.sanitizeStoredErrorString` |
+| Submit preflight inline UI | May show **sanitized** message on mounted `SPLTextField` | Cached from `runCustomValidationBeforeSubmit`; not tokenize egress |
+| `PaymentResult.Failed` on tokenize | **Never** — generic SDK message only | `originalError = null`; message is `Payment form validation failed` |
+| `createPaymentMethod` / `Result.Error` | **Never** on API error detail or nested validation errors | Same generic top-level message |
+| Logs / Datadog events | **Never** — field name + reason only | `validation.custom_validator_failed` / `_error`; reasons `threw`, `malformed`, `fields_oversized` |
+| `PaymentProcessingResult.ValidationFailed` | Built-in union and custom-validator fail | Custom fail blocks tokenize before API call; `invalidFields` may be empty when only custom validation failed |
+
+Do not log or display tokenize failures using raw validator return values.
+
+#### Forbidden registration keys
+
+Registration is a **no-op** (sanitized warn, never throws) for:
+
+- PAN (cardholder data): `number`
+- Sensitive authentication data: `verification_value` / `cvv`, and separator variants
+- Expiry (cardholder data): `month`, `year`, `expiry`
+- ACH: bank / routing / account keys
+- Unknown names or names longer than **64** characters
+
+Only the **29** non-bank `AdditionalField` snake_case keys are accepted (billing, shipping, canonical address/phone keys). See the allowlist in [custom-payment-forms.md](custom-payment-forms.md#custom-additional-field-validators).
+
+#### `fields` map passed to validators (`stripPciOwnedKeys`)
+
+At invoke time the SDK builds a merged allowlisted map, then **strips PCI-owned keys**
+(`number`, `verification_value`, `month`, `year`, expiry aliases, ACH keys) before calling
+your validator. The callback receives a **read-only snapshot** (`Collections.unmodifiableMap`)
+so one validator cannot mutate cross-field values seen by later validators in the same pass.
+Merchants never receive PAN, CVV, or expiry values in the `fields` snapshot even if they
+were present in internal merge state. The current field **value** is still passed as the
+first callback argument for the registered key.
+
+#### Fail-closed behavior
+
+Custom validation **blocks tokenize** when a validator returns `isValid = false`, throws,
+returns a malformed result, or when the merged fields map exceeds size caps (**64** keys /
+**32 768** UTF-16 code units). Tokenize does not fail-open on merchant errors (unlike web).
+
+#### Sticky blur failure latch
+
+When blur or submit preflight fails, the SDK sets a **per-wire-key sticky latch** so
+`hasValidationError` / `areAllFieldsValid` and hosted `onValidationChange(false)` gate Pay
+**without re-invoking** merchant validators on every poll. The latch clears on Pass,
+`removeValidation`, form reset, and when the same mounted field value changes (SDK-internal).
+For cross-field dependency edits, call **`runCustomValidationBeforeSubmit`** on Pay — do not
+require merchants to clear sticky state manually.
+Sticky state lives in the `Spreedly` instance process memory only (not restored after process
+death).
+
+#### Mounted catalogue in validator `fields` map
+
+For card tokenize, owned keys are `formFields ∪` mounted catalogue field types. Hosted /
+sheet state wins over conflicting `additionalFields` for those keys. Custom validators at
+submit preflight and tokenize receive the same merged map (see
+[Custom payment forms](custom-payment-forms.md#custom-additional-field-validators)).
+
+#### Pay-path evaluation count
+
+`CheckoutButton` calls `createCreditCard` directly — it does **not** call
+`runCustomValidationBeforeSubmit` first. Custom validators run once, inside `createCreditCard`'s
+tokenize tier; a failure there returns `PaymentProcessingResult.ValidationFailed` before any
+network call. `runCustomValidationBeforeSubmit` is for custom Pay controls that want inline
+blur errors refreshed before calling tokenize themselves — calling it ahead of `createCreditCard`
+means validators run twice (preflight + tokenize fail-closed gate). Keep validators cheap; do not
+rely on side effects that must run exactly once per click. Details:
+[Custom payment forms — Pay-path evaluation](custom-payment-forms.md#custom-additional-field-validators).
+
+#### Registry lifetime
+
+Custom validator registrations and sticky blur latches are **per `Spreedly` instance** in
+process memory. They survive `init()` on the same instance but not process death; re-register
+after recreating the SDK.
+
 ### Card scheme-only storage
 
 `CardNumberContext` stores only the detected card scheme (e.g. Visa, Amex) --
@@ -130,8 +238,7 @@ read the scheme without ever seeing the card number.
 ### No local persistence
 
 The SDK does not write card data to disk, SharedPreferences, or any local
-database. All sensitive values exist only in encrypted process memory and are
-transmitted directly to the Spreedly API over HTTPS.
+database. Sensitive fields are encrypted in `PaymentSheetState` while the form is active; validation and tokenization briefly handle decrypted values in process memory before transmission to the Spreedly API over HTTPS.
 
 ## Log Sanitization
 
@@ -186,9 +293,11 @@ Additional protections:
   JSON, e.g. unlabeled 13-digit timestamps). Do not treat stored strings as a
   source of truth for analytics or retries — use `statusCode` / `errorKey` /
   `safeDescription()` instead.
-  `AppNetworkError.API_ERROR.toString()` also matches `safeDescription()`;
-  public `API_ERROR` getters remain raw. Direct `AppNetworkError` consumers are not
-  covered by this tokenize-path hardening. `RequestHandler` uses streaming
+  `AppNetworkError.API_ERROR.toString()` also matches `safeDescription()`.
+  `errorBody` is sanitized the same way at HTTP ingress before storage (every production
+  construction site passes it through `sanitizeStoredApiErrorBody`), so direct
+  `AppNetworkError` consumers get the same redaction `SpreedlyNetworkError` applies, not a
+  raw body. `RequestHandler` uses streaming
   `HttpStatement.execute { }` (not the no-arg overload that buffers the full
   body via `call.save()`), reads at most 8 KiB **bytes** from the HTTP error
   body channel, and cancels the rest; success (2xx) bodies are not capped.
@@ -230,8 +339,14 @@ to disable Datadog logging entirely, or set a higher threshold (e.g.
 ## Network Security
 
 - All API calls use HTTPS via the Ktor CIO engine.
-- The SDK targets `core.spreedly.com` exclusively.
-- No plaintext HTTP endpoints are used or supported.
+- The SDK targets `core.spreedly.com` by default.
+- `Spreedly.createWithCustomNetwork()` defaults to `URLProtocol.HTTPS` and is the primary way to
+  change the protocol or host. It technically accepts `URLProtocol.HTTP`, intended only for
+  advanced/local test infrastructure (e.g. a local mock server) — never use `HTTP` against a real
+  backend, since cardholder data and other sensitive fields would then transit unencrypted.
+  `createWithCustomDependencies()` and `createWithCustomRequestHandler()` can also change the
+  protocol or host, since the caller supplies the underlying `SpreedlyApiService` /
+  `RequestHandler` directly — the same HTTPS-only guidance applies to those call sites.
 
 ### ProGuard / R8
 
@@ -275,6 +390,7 @@ encounter issues, add:
 - [Privacy Policy](privacy-policy.md) -- Data collection, processing, and third-party services
 - [Getting Started](getting-started.md) -- Installation and first payment
 - [Custom Payment Forms](custom-payment-forms.md) -- Building payment UI with hosted fields
+- [Error Handling](error-handling.md) -- Tokenize failures and custom-validator tokenize-egress behavior
 - [Recaching](recaching.md) -- CVV recaching security details
 - [Vulnerability Scanning](../development/VULNERABILITY_SCANNING.md) -- Dependency scanning and incident response
 - [Secret Scanning](../development/SECRET_SCANNING.md) -- Preventing secret leaks in commits

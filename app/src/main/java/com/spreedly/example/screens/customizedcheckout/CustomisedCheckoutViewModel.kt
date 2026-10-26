@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.spreedly.app.BuildConfig
 import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
+import com.spreedly.example.utils.DemoSdkAuthSession
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
 import com.spreedly.sdk.Spreedly
@@ -22,85 +23,65 @@ import kotlinx.coroutines.launch
  * ViewModel for CustomisedCheckoutScreen managing payment state and SDK initialization.
  */
 class CustomisedCheckoutViewModel(private val context: Context) : ViewModel() {
-    // Spreedly SDK instance - survives configuration changes via ViewModel
     val sdk = Spreedly()
 
-    // SnackbarHostState for showing messages
     val snackbarHostState = SnackbarHostState()
 
-    // UI State
     private val _isInitializing = MutableStateFlow(true)
     val isInitializing: StateFlow<Boolean> = _isInitializing.asStateFlow()
 
     private val _token = MutableStateFlow("")
     val token: StateFlow<String> = _token.asStateFlow()
 
-    // Payment method repository for retention
     private val paymentMethodRepository = PaymentMethodRepository(context)
-    private val sdkSessionManager = SdkSessionManager(AuthService())
+    private val authSession = DemoSdkAuthSession(SdkSessionManager(AuthService()))
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
     private var paymentResultJob: Job? = null
     private var initJob: Job? = null
 
-    // Initialize SDK on ViewModel creation
     init {
-        initializeSDK()
-    }
-
-    /**
-     * Initialize SDK only if it's not already initialized.
-     */
-    fun initializeSDKIfNeeded() {
-        if (!sdk.isInitialized) {
-            initializeSDK()
-        }
-    }
-
-    private fun initializeSDK() {
-        initJob = viewModelScope.launch {
-            _isInitializing.value = true
-            try {
-                sdkSessionManager.initializeSdk(sdk, context.applicationContext, BuildConfig.ENVIRONMENT_KEY)
-                    .fold(
-                        onSuccess = {
-                            Log.d(TAG, "CustomisedCheckoutViewModel: SDK initialized successfully")
-                            observePaymentResults()
-                        },
-                        onFailure = { e ->
-                            Log.d(TAG, "CustomisedCheckoutViewModel: Failed to fetch auth parameters: ${e::class.simpleName}")
-                            snackbarHostState.showSnackbar("Failed to fetch auth parameters")
-                        },
-                    )
-            } catch (e: Exception) {
-                Log.d(TAG, "CustomisedCheckoutViewModel: SDK initialization failed: ${e::class.simpleName}")
-                snackbarHostState.showSnackbar("SDK initialization failed")
+        initJob =
+            viewModelScope.launch {
+                ensureFreshAuthBeforePayment()
             }
-            _isInitializing.value = false
-        }
     }
+
+    suspend fun ensureFreshAuthBeforePayment(): Boolean =
+        authSession.ensureFreshAuth(
+            sdk = sdk,
+            context = context,
+            environmentKey = BuildConfig.ENVIRONMENT_KEY,
+            isInitializing = _isInitializing,
+            registerObserversIfNeeded = ::observePaymentResults,
+            onFailure = { snackbarHostState.showSnackbar("Failed to fetch auth parameters") },
+        )
 
     private fun observePaymentResults() {
-        paymentResultJob = paymentResultHandler.observeResults(
-            sdk = sdk,
-            scope = viewModelScope,
-            onCompleted = { result ->
-                _token.value = result.token
-                Log.d(TAG, "CustomisedCheckoutViewModel: Token set")
-                if (result.shouldRetain) {
-                    handlePaymentRetention(result)
-                } else {
-                    snackbarHostState.showSnackbar("Payment completed successfully!")
-                }
-            },
-            onFailed = {
-                Log.d(TAG, "CustomisedCheckoutViewModel: Payment failed: ${it.errorType}")
-                snackbarHostState.showSnackbar("Payment failed")
-            },
-            onCanceled = {
-                Log.d(TAG, "CustomisedCheckoutViewModel: Payment canceled")
-                snackbarHostState.showSnackbar("Payment canceled")
-            },
-        )
+        paymentResultJob?.cancel()
+        paymentResultJob =
+            paymentResultHandler.observeResults(
+                sdk = sdk,
+                scope = viewModelScope,
+                onCompleted = { result ->
+                    _token.value = result.token
+                    authSession.onTerminalPaymentResult(result)
+                    Log.d(TAG, "CustomisedCheckoutViewModel: Token set")
+                    if (result.shouldRetain) {
+                        handlePaymentRetention(result)
+                    } else {
+                        snackbarHostState.showSnackbar("Payment completed successfully!")
+                    }
+                },
+                onFailed = {
+                    Log.d(TAG, "CustomisedCheckoutViewModel: Payment failed: ${it.errorType}")
+                    authSession.onTerminalPaymentResult(it)
+                    snackbarHostState.showSnackbar("Payment failed")
+                },
+                onCanceled = {
+                    Log.d(TAG, "CustomisedCheckoutViewModel: Payment canceled")
+                    snackbarHostState.showSnackbar("Payment canceled")
+                },
+            )
     }
 
     fun clearToken() {
@@ -111,13 +92,13 @@ class CustomisedCheckoutViewModel(private val context: Context) : ViewModel() {
         initJob?.cancel()
         paymentResultJob?.cancel()
         clearToken()
-        initializeSDK()
+        authSession.prepareForManualReinitialize()
+        initJob =
+            viewModelScope.launch {
+                ensureFreshAuthBeforePayment()
+            }
     }
 
-    /**
-     * Handle payment retention after successful payment creation.
-     * Calls the backend retain API.
-     */
     private fun handlePaymentRetention(result: PaymentResult.Completed) {
         viewModelScope.launch {
             try {

@@ -12,6 +12,7 @@ All three paths produce a Spreedly payment method token. The drop-in bottom shee
 
 - [Prerequisites](#prerequisites)
 - [Required and Optional Fields](#required-and-optional-fields)
+- [Hosted catalogue fields (card vs ACH)](#hosted-catalogue-fields-card-vs-ach)
 - [Pre-built Bottom Sheet](#pre-built-bottom-sheet)
 - [Custom Layout](#custom-layout)
 - [Headless Flow](#headless-flow)
@@ -52,6 +53,24 @@ Optional fields (gateway-dependent):
 | Account type | `checking` (alternatives: `savings`) |
 | Account holder type | `personal` (alternatives: `business`) |
 | Bank name | Not shown |
+
+---
+
+## Hosted catalogue fields (card vs ACH)
+
+Catalogue `FormFieldType` values, payment-sheet optional fields, and **card-path** hosted-wins merge (`formFields ∪ mounted` at tokenize and submit validation) apply to card tokenize. ACH behaves differently today.
+
+**ACH in this release:**
+
+| Behavior | Card (`createCreditCard` / gated `createPaymentMethod`) | ACH (`createBankAccount`) |
+|----------|-----------------------------------------------------------|---------------------------|
+| Submit validates merchant `formFields` only | No — also unions mounted catalogue types | **Yes** |
+| Hosted-wins owned-key merge at tokenize | Yes | No |
+| Catalogue `SPLTextField` on bank form | May mount for UI; does not change ACH submit union | Same |
+
+If you mount a required catalogue field (for example `EMAIL`) beside a headless ACH form but omit it from `createBankAccount(formFields = …)`, **`createBankAccount()` does not** block ACH submit for that mount. List every field you want gated in `formFields`, or rely on your own UI validation.
+
+Mounted submit union and hosted-wins for ACH are **deferred to a follow-up release** (the card paths have already shipped). SDK unit tests lock current behavior until then.
 
 ---
 
@@ -447,7 +466,7 @@ Results are delivered by different channels depending on the integration path.
 
 - **Drop-in** — every terminal (`Completed`, `Failed`, `Canceled`) is delivered to `onPaymentResult`, scoped to that sheet’s surface id. Shared-flow collectors still see `Completed`/`Failed`. **Cancellation is surface-only.**
 - **Headless / direct** — `Completed` and `Failed` on `paymentResultFlow`; no user-cancel concept. Unexpected SDK failures return immediate `PaymentProcessingResult.Failed(UNEXPECTED_ERROR)` while the sanitized `PaymentResult.Failed` is delivered asynchronously. ACH network/API failures never expose `originalError` or `rawErrorResponse` on public results.
-- **Logging** — log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging (see [Error Handling](error-handling.md#error-logging-for-debugging)). Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"` — merchant-built `Failed` getters may still hold unsanitized strings; `Failed.toString()` omits them.
+- **Logging** — log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging (see [Error Handling](error-handling.md#2-error-logging-for-debugging)). Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"` — merchant-built `Failed` getters may still hold unsanitized strings; `Failed.toString()` omits them.
 
 **Programmatic hide vs user-cancel**: setting `show = false` from the parent hides the sheet and clears SDK state, but does **not** call `onPaymentResult(Canceled)`. Only a swipe/back dismiss triggered by the user produces a `Canceled` result. If your UI needs to distinguish "user abandoned" from "parent closed the sheet", track that distinction in your own state rather than relying on `Canceled` alone.
 

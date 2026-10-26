@@ -89,7 +89,7 @@ Your purchase request must include `attempt_3dsecure: true` for 3DS to trigger.
 ### Card Tokenization (Custom Payment Forms / Hosted Fields)
 
 1. Initialize the SDK
-2. Render hosted fields via `SpreedlyHostedField` composables
+2. Render hosted fields via `SPLTextField` composables
 3. Fill in test card data
 4. Call `sdk.createCreditCard(...)` with form fields and any additional fields
 5. Verify `PaymentResult.Completed` via `paymentResultFlow`
@@ -194,6 +194,8 @@ See [ACH Bank Account](ach-bank-account.md) for the full integration.
 // Will trigger ACCOUNT_INACTIVE if using a real card with a test gateway
 
 // Test validation errors (use empty required fields)
+// Present additionalFields keys pluck their value unchanged (including "" and whitespace-only),
+// matching Checkout Web SDK tokenize. Omit a key to keep form state for that field.
 sdk.createCreditCard(
     formFields = listOf(FormFieldType.CARD(true)),
     additionalFields = mapOf(

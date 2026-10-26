@@ -40,7 +40,7 @@ dependencies {
 ## What Changed
 
 - Published AARs now embed `META-INF/LICENSE` (Apache 2.0) inside `classes.jar`
-- Maven distribution repository tags are GPG-signed
+- Maven distribution repository tags are GPG-signed when a signing key is configured
 - CI pipeline hardened with runner stability guards and DAST scanning
 
 ## Support

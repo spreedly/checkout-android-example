@@ -51,6 +51,37 @@ Immediate `createBankAccount()` return values:
 
 ACH tokenization after validation runs to completion even when the merchant coroutine is cancelled; do not retry until a terminal is delivered. See [ACH Bank Account — cancellation and retry](ach-bank-account.md#cancellation-in-flight-tokenization-and-retry).
 
+### Client-side submit validation (card)
+
+`createCreditCard()` and gated `createPaymentMethod(formFields=…)` (non-empty `formFields` **or** mounted catalogue `SPLTextField` types) return **`PaymentProcessingResult.ValidationFailed`** with `invalidFields` when the submit union fails — form stays open; no tokenize network call. Empty `formFields` with no catalogue mounts keeps legacy no client-side field validation on `createPaymentMethod()`.
+
+Handle the same way as ACH immediate returns:
+
+```kotlin
+when (val result = sdk.createCreditCard(formFields = formFields)) {
+    is PaymentProcessingResult.ValidationFailed -> {
+        // result.invalidFields — FormFieldType list; show field errors
+    }
+    is PaymentProcessingResult.Processing -> { /* wait for paymentResultFlow */ }
+    else -> { /* Rejected / Failed */ }
+}
+```
+
+Mounted required catalogue fields (for example `EMAIL`) block card submit even when omitted from `formFields`. Hosted-wins strip of conflicting `additionalFields` runs at tokenize after validation. Full tables: [Custom payment forms — Payment Submission](custom-payment-forms.md). `createBankAccount()` does **not** use the mounted union — see [ACH Bank Account](ach-bank-account.md#hosted-catalogue-fields-card-vs-ach).
+
+#### Custom validator failures
+
+When registered custom validators fail at submit preflight or tokenize, the SDK **does not**
+surface merchant `errorMessage` on `PaymentResult.Failed`, in logs, or in telemetry.
+Blur and preflight inline UI may show a sanitized merchant message; tokenize returns a **generic**
+failure or blocks with `PaymentProcessingResult.ValidationFailed` before any network call.
+
+- Use **`PaymentProcessingResult.ValidationFailed`** / sticky blur gating / preflight inline errors
+  for UX — not `PaymentResult.Failed.message` from custom rules.
+- **`CheckoutButton` Pay path:** calls `createCreditCard` directly, not `runCustomValidationBeforeSubmit`
+  first — custom validators run once, inside tokenize (intentional fail-closed gate). See
+  [Security — Pay-path evaluation count](security.md#pay-path-evaluation-count).
+- Full tokenize-egress table, forbidden keys, and main-thread contract: [Security — Custom additional-field validators](security.md#custom-additional-field-validators) and [Custom payment forms](custom-payment-forms.md#custom-additional-field-validators).
 
 ### SpreedlyApiError Types
 
@@ -344,13 +375,33 @@ sdk.createCreditCard(
     // Will trigger account_inactive if using real card with test gateway
 )
 
-// Test validation errors (use empty required fields)
+// Test validation errors — list name fields in formFields with required = true
+// (blank additionalFields alone does not fail when those types are omitted from formFields;
+// present keys pluck through unchanged — see custom-payment-forms.md)
+sdk.createCreditCard(
+    formFields = listOf(
+        FormFieldType.CARD(true),
+        FormFieldType.FIRST_NAME(true),
+        FormFieldType.LAST_NAME(true),
+    ),
+    additionalFields = mapOf(
+        AdditionalField.FIRST_NAME to "",
+        AdditionalField.LAST_NAME to "",
+    ),
+)
+
+// Mounted catalogue submit union (card only): invalid mounted EMAIL blocks tokenize even when
+// omitted from formFields. createPaymentMethod(formFields=…) uses the same gate when non-empty
+// or when catalogue fields are mounted. Hosted-wins strips conflicting additionalFields at merge.
+// See custom-payment-forms.md.
+
+// Blank pluck-through when name keys are only in additionalFields (CARD-only manifest)
 sdk.createCreditCard(
     formFields = listOf(FormFieldType.CARD(true)),
     additionalFields = mapOf(
-        AdditionalField.FIRST_NAME to "",  // Will trigger validation error
-        AdditionalField.LAST_NAME to "",   // Will trigger validation error
-    )
+        AdditionalField.FIRST_NAME to "",
+        AdditionalField.LAST_NAME to "",
+    ),
 )
 
 // Test success scenario (use test card)

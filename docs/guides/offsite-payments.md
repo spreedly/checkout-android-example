@@ -1625,7 +1625,7 @@ data class Failed(
 ```
 
 - `state` contains the transaction state when the failure was detected via status API
-- **Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](error-handling.md#error-logging-for-debugging).
+- **Logging:** log `errorType`, `apiError`, `statusCode`, and `toString()` for debugging. Use `getDescription()` for UI only. Never log `message`, `rawErrorResponse`, `originalError`, or `"$failed"`. See [Error Handling](error-handling.md#2-error-logging-for-debugging).
 
 ---
 
@@ -1638,7 +1638,7 @@ For complete, working examples, refer to the sample app:
 - **Kotlin ViewModel**: [`OffsitePaymentViewModel.kt`](../../app/src/main/java/com/spreedly/example/screens/offsitepayment/OffsitePaymentViewModel.kt)
 - **Kotlin UI Screen**: [`OffsitePaymentScreen.kt`](../../app/src/main/java/com/spreedly/example/screens/offsitepayment/OffsitePaymentScreen.kt)
 - **Java Activity**: [`JavaOffsitePaymentActivity.java`](../../app/src/main/java/com/spreedly/example/JavaOffsitePaymentActivity.java)
-- **Java Helper**: [`OffsitePaymentJavaHelper.kt`](../../payments-core/src/main/java/com/spreedly/sdk/ui/offsite/OffsitePaymentJavaHelper.kt)
+- **Java Helper**: `OffsitePaymentJavaHelper.kt`
 
 ### EBANX-Specific Examples
 

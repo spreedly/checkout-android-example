@@ -12,8 +12,11 @@ import com.spreedly.app.BuildConfig
 import com.spreedly.example.AuthService
 import com.spreedly.example.models.SavedPaymentMethod
 import com.spreedly.example.repository.PaymentMethodRepository
+import com.spreedly.example.utils.DemoSdkAuthSession
+import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
 import com.spreedly.sdk.SpreedlyErrorMessages
+import com.spreedly.sdk.ui.PaymentProcessingResult
 import com.spreedly.result.Result
 import com.spreedly.sdk.Spreedly
 import com.spreedly.sdk.models.paymentMethodUpdatedAt
@@ -48,10 +51,12 @@ class RecachingShowcaseViewModel(private val context: Context) : ViewModel() {
 
     // Saved payment methods
     private val paymentMethodRepository = PaymentMethodRepository(context)
-    private val sdkSessionManager = SdkSessionManager(AuthService())
+    private val authSession = DemoSdkAuthSession(SdkSessionManager(AuthService()))
+    private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
     private val _savedPaymentMethods = MutableStateFlow<List<SavedPaymentMethod>>(emptyList())
     val savedPaymentMethods: StateFlow<List<SavedPaymentMethod>> = _savedPaymentMethods.asStateFlow()
     private var initJob: Job? = null
+    private var paymentResultJob: Job? = null
     private val _presentationMode = MutableStateFlow(ScreenPresentationMode.bottomSheet)
     val presentationMode: StateFlow<ScreenPresentationMode> = _presentationMode.asStateFlow()
 
@@ -63,8 +68,10 @@ class RecachingShowcaseViewModel(private val context: Context) : ViewModel() {
 
     // Initialize SDK on ViewModel creation
     init {
-        initializeSDK()
-        // Load saved payment methods without initializing mock data
+        initJob =
+            viewModelScope.launch {
+                ensureFreshAuthBeforePayment()
+            }
         viewModelScope.launch {
             try {
                 val methods = paymentMethodRepository.getSavedPaymentMethods()
@@ -77,26 +84,42 @@ class RecachingShowcaseViewModel(private val context: Context) : ViewModel() {
         fetchPaymentMethodsFromBackend()
     }
 
-    private fun initializeSDK() {
-        initJob = viewModelScope.launch {
-            _isInitializing.value = true
-            try {
-                sdkSessionManager.initializeSdk(sdk, context.applicationContext, BuildConfig.ENVIRONMENT_KEY)
-                    .fold(
-                        onSuccess = {
-                            Log.d(TAG,"RecachingShowcaseViewModel: SDK initialized successfully")
-                        },
-                        onFailure = { e ->
-                            Log.d(TAG,"RecachingShowcaseViewModel: Failed to fetch auth parameters: ${e::class.simpleName}")
-                            snackbarHostState.showSnackbar("Failed to fetch auth parameters")
-                        },
-                    )
-            } catch (e: Exception) {
-                Log.d(TAG,"RecachingShowcaseViewModel: SDK initialization failed: ${e::class.simpleName}")
-                snackbarHostState.showSnackbar("SDK initialization failed")
-            }
-            _isInitializing.value = false
-        }
+    suspend fun ensureFreshAuthBeforePayment(): Boolean =
+        authSession.ensureFreshAuth(
+            sdk = sdk,
+            context = context,
+            environmentKey = BuildConfig.ENVIRONMENT_KEY,
+            isInitializing = _isInitializing,
+            registerObserversIfNeeded = ::observePaymentResults,
+            onFailure = { snackbarHostState.showSnackbar("Failed to fetch auth parameters") },
+        )
+
+    private fun observePaymentResults() {
+        paymentResultJob?.cancel()
+        paymentResultJob =
+            paymentResultHandler.observeResults(
+                sdk = sdk,
+                scope = viewModelScope,
+                onCompleted = { result ->
+                    _isProcessing.value = false
+                    _paymentToken.value = result.token
+                    authSession.onTerminalPaymentResult(result)
+                    snackbarHostState.showSnackbar("Payment method created successfully!")
+                },
+                onFailed = { result ->
+                    _isProcessing.value = false
+                    authSession.onTerminalPaymentResult(result)
+                    snackbarHostState.showSnackbar("Payment failed: ${result.message}")
+                },
+                onCanceled = {
+                    _isProcessing.value = false
+                    snackbarHostState.showSnackbar("Payment canceled")
+                },
+            )
+    }
+
+    fun onPaymentSubmitResult(result: PaymentProcessingResult) {
+        authSession.onPaymentSubmitResult(result)
     }
 
     fun setProcessing(processing: Boolean) {
@@ -110,8 +133,13 @@ class RecachingShowcaseViewModel(private val context: Context) : ViewModel() {
 
     fun reinitialize() {
         initJob?.cancel()
+        paymentResultJob?.cancel()
         clearToken()
-        initializeSDK()
+        authSession.prepareForManualReinitialize()
+        initJob =
+            viewModelScope.launch {
+                ensureFreshAuthBeforePayment()
+            }
     }
 
     // Backup timeout mechanism in case payment result flow fails
