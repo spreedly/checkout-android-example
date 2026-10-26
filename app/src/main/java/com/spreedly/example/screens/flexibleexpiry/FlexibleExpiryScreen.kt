@@ -504,6 +504,7 @@ fun FlexibleExpiryScreen(
                         value = sdk.paymentState.value.nameOnCard.value,
                         onChange = { sdk.callbacks.onNameOnCardChange(it, nameRequired) },
                         imeAction = ImeAction.Done,
+                        writeCatalogueValueToSdk = false,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -588,6 +589,7 @@ fun FlexibleExpiryScreen(
                                 },
                             ),
                         retainOnSuccess = shouldRetainPaymentMethod,
+                        beforeSubmit = { viewModel.ensureFreshAuthBeforePayment() },
                     )
 
                     RetokenizeCard(

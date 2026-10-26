@@ -74,7 +74,8 @@ For configuration options (theming, additional fields, name display, year format
 [Express Checkout](express-checkout.md) guide.
 
 Or use Hosted Fields for a custom payment form. See the
-[Custom Payment Forms](custom-payment-forms.md) guide.
+[Custom Payment Forms](custom-payment-forms.md) guide for catalogue fields, canonical tokenize
+keys, and custom validators (`addValidation` / `runCustomValidationBeforeSubmit` on custom Pay buttons).
 
 ## 4. Handle the Result
 

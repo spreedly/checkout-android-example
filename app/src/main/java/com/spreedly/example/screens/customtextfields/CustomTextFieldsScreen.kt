@@ -4,26 +4,23 @@ package com.spreedly.example.screens.customtextfields
  * CustomTextFieldsScreen demonstrates how to integrate custom text fields with Spreedly's secure SPL fields.
  *
  * This example shows a hybrid approach where:
- * - SPL text fields handle sensitive card data (Card Number, Expiry Date, CVV) for PCI compliance
- * - Custom text fields handle personal information with custom validation logic
- * - A custom payment button uses sdk.processPayment() for payment processing
+ * - SPLTextField (hosted fields) handle card data and additional fields registered with sdk.addValidation()
+ * - CustomTextField handles merchant-owned inputs with your own validation (FormInput pattern)
+ * - A custom payment button validates both field types before createCreditCard
  *
- * Key Features:
- * - Real-time validation for custom fields using FormInput pattern
- * - Seamless integration with SDK callbacks to maintain state consistency
- * - Custom button that validates both SPL and custom fields before processing
- * - Comprehensive error handling and user feedback
- *
- * Usage:
- * This example can be used as a template for implementing custom forms where you need:
- * - Full control over validation logic for non-sensitive fields
- * - Custom UI/UX for specific business requirements
- * - Integration with existing form validation systems
- * - Mixed field types in a single form
+ * Key features:
+ * - Real-time validation for custom fields using the FormInput pattern
+ * - sdk.addValidation() on hosted SPLTextField optional fields (inline errors on blur)
+ * - Custom validator failures surface as a ValidationFailed snackbar via createCreditCard,
+ *   not through a pre-submit preflight call; inline errors are set on blur only
+ * - Core name fields (Full Name) are not exposed in the field configuration card; custom
+ *   name validators are not registered from this screen
+ * - SDK callbacks keep field values in sync with payment state
+ * - Combined validation before payment processing: areAllFieldsValid gates the button,
+ *   createCreditCard handles custom validation internally and returns ValidationFailed
  */
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,7 +63,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -96,19 +93,21 @@ import com.spreedly.example.ui.components.RetokenizeCard
 import com.spreedly.example.ui.components.ThemeConfigurationCard
 import com.spreedly.example.ui.components.ThemeConfigurationStyle
 import com.spreedly.example.MerchantMaskToggleBar
+import com.spreedly.example.optionalfields.DemoOptionalFieldConfigCard
+import com.spreedly.example.optionalfields.DemoOptionalFieldSelection
+import com.spreedly.example.optionalfields.DemoOptionalHostedFieldsSection
 import com.spreedly.example.qa.FieldStateInspectorCard
 import com.spreedly.example.qa.HeadlessHostedFieldsConfigCard
 import com.spreedly.example.ui.theme.Spacing
+import com.spreedly.example.validation.DemoCoreNameFieldLayout
+import com.spreedly.example.validation.DemoExpiryManifestTest
 import com.spreedly.example.viewmodel.customTextFieldsViewModel
 import com.spreedly.hostedfields.ui.SPLTextField
-import com.spreedly.sdk.AdditionalField
 import com.spreedly.sdk.models.FormFieldType
 import com.spreedly.sdk.ui.PaymentProcessingResult
 import com.spreedly.security.secureScreen
 import com.spreedly.validation.formx.FormInput
 import kotlinx.coroutines.launch
-
-private const val TAG = "CustomTextFieldsScreen"
 
 /**
  * Custom form input for name validation.
@@ -191,47 +190,6 @@ enum class CityError {
     InvalidCharacters,
 }
 
-// Custom form input for state validation
-class StateInput(
-    value: String,
-    isPristine: Boolean = true,
-) : FormInput<String, StateError>(value, isPristine) {
-    override fun validator(value: String): StateError? =
-        when {
-            value.isBlank() -> StateError.Empty
-            value.length !in 2..3 -> StateError.InvalidLength
-            !value.matches(Regex("^[A-Z]{2,3}$")) -> StateError.InvalidFormat
-            else -> null
-        }
-}
-
-enum class StateError {
-    Empty,
-    InvalidLength,
-    InvalidFormat,
-}
-
-// Custom form input for zip code validation
-class ZipCodeInput(
-    value: String,
-    isPristine: Boolean = true,
-) : FormInput<String, ZipCodeError>(value, isPristine) {
-    override fun validator(value: String): ZipCodeError? = when {
-            value.isBlank() -> ZipCodeError.Empty
-            value.length > 10 -> ZipCodeError.TooLong
-            // Support both US ZIP codes (12345 or 12345-6789) and international postal codes
-            // (e.g., Canadian K1A 0B1, UK SW1A 1AA)
-            !value.matches(Regex("^[A-Za-z0-9\\s-]+$")) -> ZipCodeError.InvalidFormat
-            else -> null
-        }
-}
-
-enum class ZipCodeError {
-    Empty,
-    InvalidFormat,
-    TooLong,
-}
-
 /**
  * A reusable custom text field component that integrates with the validation system.
  *
@@ -302,7 +260,9 @@ fun CustomTextField(
                     color = borderColor,
                     shape = RoundedCornerShape(8.dp),
                 ).padding(12.dp)
-                .onFocusChanged { isFocused = it.isFocused },
+                .onFocusChanged { focusState ->
+                    isFocused = focusState.isFocused
+                },
             textStyle = TextStyle(
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -348,21 +308,16 @@ fun CustomTextField(
  * Main screen demonstrating custom text fields integration with Spreedly SDK.
  *
  * This screen showcases a hybrid approach where:
- * 1. Card payment information uses secure SPL text fields
- * 2. Personal information uses custom text fields with independent validation
- * 3. A custom payment button handles validation and processing
+ * 1. Card payment information uses secure SPLTextField hosted fields
+ * 2. Country, state, and zip use SPLTextField with sdk.addValidation() custom rules
+ * 3. Name, address, and city use CustomTextField with independent FormInput validation
+ * 4. A custom payment button handles validation and processing
  *
- * Key Implementation Details:
- * - Custom validation classes extend FormInput for consistent behavior
- * - SDK callbacks are used to sync custom field values with SDK state
- * - Combined validation ensures both SPL and custom fields are valid before payment
- * - Real-time error display provides immediate user feedback
- *
- * This pattern is ideal for scenarios where you need:
- * - Custom validation logic for business-specific requirements
- * - Full control over non-sensitive field UI/UX
- * - Integration with existing form validation systems
- * - Mixed security levels within a single form
+ * Key implementation details:
+ * - Custom validation classes extend FormInput for merchant-owned fields
+ * - sdk.addValidation() applies only to hosted SPLTextField fields (pass sdk = sdk)
+ * - SDK callbacks sync field values with payment state
+ * - Combined validation ensures SPL and custom fields are valid before payment
  */
 @Composable
 @SuppressLint("ComposeModifierMissing")
@@ -371,7 +326,7 @@ fun CustomTextFieldsScreen(
 ) {
     val sdk = viewModel.sdk
     val hostedCardDisplayState by sdk.hostedCardDisplayState
-    val inspectorUiState by viewModel.inspectorUiState.collectAsState()
+    val inspectorUiState by viewModel.inspectorUiState.collectAsStateWithLifecycle()
     var enableAutofill by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(hostedCardDisplayState) {
@@ -381,24 +336,24 @@ fun CustomTextFieldsScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    val isInitializing by viewModel.isInitializing.collectAsState()
-    val isProcessing by viewModel.isProcessing.collectAsState()
-    val paymentToken by viewModel.paymentToken.collectAsState()
+    val isInitializing by viewModel.isInitializing.collectAsStateWithLifecycle()
+    val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
+    val paymentToken by viewModel.paymentToken.collectAsStateWithLifecycle()
 
     var shouldRetainPaymentMethod by remember { mutableStateOf(false) }
 
     // Custom form field states - managed by ViewModel to survive configuration changes
     // These are separate from SDK state to demonstrate independent validation logic
-    val nameInput by viewModel.nameInput.collectAsState()
-    val addressInput by viewModel.addressInput.collectAsState()
-    val cityInput by viewModel.cityInput.collectAsState()
-    val stateInput by viewModel.stateInput.collectAsState()
-    val zipCodeInput by viewModel.zipCodeInput.collectAsState()
-    val isFormValid by viewModel.isFormValid.collectAsState()
-    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
-    val selectedThemePreset by viewModel.selectedThemePreset.collectAsState()
-    val fieldOverrideTarget by viewModel.fieldOverrideTarget.collectAsState()
-    val fieldStyleOverrides by viewModel.fieldStyleOverrides.collectAsState()
+    val nameInput by viewModel.nameInput.collectAsStateWithLifecycle()
+    val addressInput by viewModel.addressInput.collectAsStateWithLifecycle()
+    val cityInput by viewModel.cityInput.collectAsStateWithLifecycle()
+    val fieldSelection by viewModel.fieldSelection.collectAsStateWithLifecycle()
+    val demoInvalidExpiryManifest by viewModel.demoInvalidExpiryManifest.collectAsStateWithLifecycle()
+    val isFormValid by viewModel.isFormValid.collectAsStateWithLifecycle()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsStateWithLifecycle()
+    val selectedThemePreset by viewModel.selectedThemePreset.collectAsStateWithLifecycle()
+    val fieldOverrideTarget by viewModel.fieldOverrideTarget.collectAsStateWithLifecycle()
+    val fieldStyleOverrides by viewModel.fieldStyleOverrides.collectAsStateWithLifecycle()
     val isDarkMode = isSystemInDarkTheme()
 
     LaunchedEffect(useCustomTheme, selectedThemePreset, isDarkMode) {
@@ -413,18 +368,26 @@ fun CustomTextFieldsScreen(
         remember(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides, isDarkMode) {
             viewModel.resolveSplFieldConfig(FormFieldType.EXPIRY_DATE(true), isDarkMode)
         }
+    val monthFieldConfig =
+        remember(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides, isDarkMode) {
+            viewModel.resolveSplFieldConfig(FormFieldType.MONTH(true), isDarkMode)
+        }
+    val yearFieldConfig =
+        remember(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides, isDarkMode) {
+            viewModel.resolveSplFieldConfig(FormFieldType.YEAR(true), isDarkMode)
+        }
     val cvvFieldConfig =
         remember(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides, isDarkMode) {
             viewModel.resolveSplFieldConfig(FormFieldType.CVV(true), isDarkMode)
         }
 
-    // Define which SPL fields are required for payment processing
-    // Only card-related fields use SPL for security, custom fields handle their own validation
-    val formFields = listOf(
-        FormFieldType.CARD(true),
-        FormFieldType.EXPIRY_DATE(true),
-        FormFieldType.CVV(true),
-    )
+    val formFields =
+        remember(fieldSelection, demoInvalidExpiryManifest) {
+            fieldSelection.toHostedFormFields(
+                includeCoreCardFields = true,
+                demoInvalidExpiryManifest = demoInvalidExpiryManifest,
+            )
+        }
 
     // SDK initialization and payment result handling is now managed by ViewModel
 
@@ -448,22 +411,6 @@ fun CustomTextFieldsScreen(
             CityError.Empty -> "City is required"
             CityError.TooShort -> "City must be at least 2 characters"
             CityError.InvalidCharacters -> "City can only contain letters, spaces, hyphens, and apostrophes"
-            null -> null
-        }
-
-    fun getStateErrorMessage(error: StateError?): String? =
-        when (error) {
-            StateError.Empty -> "State is required"
-            StateError.InvalidLength -> "State must be 2-3 characters"
-            StateError.InvalidFormat -> "State must be uppercase letters only (e.g., CA, NY)"
-            null -> null
-        }
-
-    fun getZipCodeErrorMessage(error: ZipCodeError?): String? =
-        when (error) {
-            ZipCodeError.Empty -> "Zip code is required"
-            ZipCodeError.InvalidFormat -> "Invalid postal code format"
-            ZipCodeError.TooLong -> "Postal code is too long (max 10 characters)"
             null -> null
         }
 
@@ -518,7 +465,7 @@ fun CustomTextFieldsScreen(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
             Text(
-                text = "SPL fields for card data, custom fields for personal info",
+                text = "SPL hosted fields for card data, custom fields for personal info",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 48.dp),
@@ -544,6 +491,19 @@ fun CustomTextFieldsScreen(
                 onTargetSelected = viewModel::setFieldOverrideTarget,
                 onOverridesChange = viewModel::updateFieldStyleOverrides,
                 onClearOverrides = viewModel::clearFieldStyleOverrides,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp),
+            )
+
+            // Empty layout: this screen never exposes core name fields in the config card
+            // and never registers core name custom validators.
+            DemoOptionalFieldConfigCard(
+                selection = fieldSelection,
+                onSelectionChange = viewModel::updateFieldSelection,
+                availableCoreNameFields = DemoCoreNameFieldLayout(emptyList()),
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -596,6 +556,49 @@ fun CustomTextFieldsScreen(
                         modifier = Modifier.padding(bottom = 12.dp),
                     )
 
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = DemoExpiryManifestTest.SWITCH_LABEL,
+                                    style =
+                                        MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Medium,
+                                        ),
+                                )
+                                Text(
+                                    text = DemoExpiryManifestTest.SWITCH_DESCRIPTION,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                modifier = Modifier.testTag(DemoExpiryManifestTest.SWITCH_TEST_TAG),
+                                checked = demoInvalidExpiryManifest,
+                                onCheckedChange = viewModel::updateDemoInvalidExpiryManifest,
+                            )
+                        }
+                    }
+
+                    // Card hosted fields — SPLTextField for PCI-sensitive data
                     key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
                         SPLTextField(
                             label = "Card Number",
@@ -618,10 +621,7 @@ fun CustomTextFieldsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    if (demoInvalidExpiryManifest) {
                         key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
                             SPLTextField(
                                 label = "MM/YY",
@@ -632,10 +632,51 @@ fun CustomTextFieldsScreen(
                                 onValidationChange = {
                                     viewModel.onHostedFieldValidation(FormFieldType.EXPIRY_DATE(true), it)
                                 },
-                                modifier = Modifier.weight(1f),
                                 imeAction = ImeAction.Next,
+                                sdk = sdk,
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
+                                SPLTextField(
+                                    label = "Month",
+                                    formFieldType = FormFieldType.MONTH(true),
+                                    config = monthFieldConfig,
+                                    value = sdk.paymentState.value.month.value,
+                                    onChange = { sdk.callbacks.onMonthChange(it, true) },
+                                    onValidationChange = {
+                                        viewModel.onHostedFieldValidation(FormFieldType.MONTH(true), it)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    imeAction = ImeAction.Next,
+                                    sdk = sdk,
+                                )
+                            }
+
+                            key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
+                                SPLTextField(
+                                    label = "Year (YYYY)",
+                                    formFieldType = FormFieldType.YEAR(true),
+                                    config = yearFieldConfig,
+                                    value = sdk.paymentState.value.year.value,
+                                    onChange = { sdk.callbacks.onYearChange(it, true) },
+                                    onValidationChange = {
+                                        viewModel.onHostedFieldValidation(FormFieldType.YEAR(true), it)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    imeAction = ImeAction.Next,
+                                    sdk = sdk,
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
                             SPLTextField(
@@ -651,17 +692,58 @@ fun CustomTextFieldsScreen(
                                 onValidationChange = {
                                     viewModel.onHostedFieldValidation(FormFieldType.CVV(true), it)
                                 },
-                                modifier = Modifier.weight(1f),
                                 imeAction = ImeAction.Next,
                                 enableAutofill = enableAutofill,
                                 sdk = sdk,
                             )
                         }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
+                                SPLTextField(
+                                    label = "MM/YY",
+                                    formFieldType = FormFieldType.EXPIRY_DATE(true),
+                                    config = expiryFieldConfig,
+                                    value = sdk.paymentState.value.expirationDate.value,
+                                    onChange = { sdk.callbacks.onExpirationDateChange(it, true) },
+                                    onValidationChange = {
+                                        viewModel.onHostedFieldValidation(FormFieldType.EXPIRY_DATE(true), it)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    imeAction = ImeAction.Next,
+                                    sdk = sdk,
+                                )
+                            }
+
+                            key(useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
+                                SPLTextField(
+                                    label = "Security Code (CVC)",
+                                    formFieldType = FormFieldType.CVV(true),
+                                    config = cvvFieldConfig,
+                                    value = sdk.paymentState.value.securityCode.value,
+                                    onChange = {
+                                        sdk.callbacks.onSecurityCodeChange(it, true)
+                                        viewModel.fieldStateInspector.logOpaqueFieldChange(FormFieldType.CVV(true))
+                                    },
+                                    onFieldStateChange = { viewModel.onFieldStateUpdate(it) },
+                                    onValidationChange = {
+                                        viewModel.onHostedFieldValidation(FormFieldType.CVV(true), it)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    imeAction = ImeAction.Next,
+                                    enableAutofill = enableAutofill,
+                                    sdk = sdk,
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Personal Information Section
+                    // Personal Information Section — merchant-owned CustomTextField inputs
                     Text(
                         text = "Personal Information",
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -673,7 +755,7 @@ fun CustomTextFieldsScreen(
                             .padding(bottom = 12.dp),
                     )
 
-                    // Custom Name Field - demonstrates dual validation approach
+                    // Custom Name Field — FormInput validation with SDK callback sync
                     CustomTextField(
                         label = "Full Name",
                         value = nameInput.value,
@@ -691,7 +773,7 @@ fun CustomTextFieldsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Custom Address Field
+                    // Custom Address Field — merchant-owned validation; sync value via SDK callback
                     CustomTextField(
                         label = "Address Line 1",
                         value = addressInput.value,
@@ -701,10 +783,7 @@ fun CustomTextFieldsScreen(
                         },
                         isRequired = true,
                         isError = addressInput.isNotValid && !addressInput.isPristine,
-                        errorMessage = when {
-                            !addressInput.isPristine -> getAddressErrorMessage(addressInput.error)
-                            else -> null
-                        },
+                        errorMessage = if (!addressInput.isPristine) getAddressErrorMessage(addressInput.error) else null,
                         keyboardType = KeyboardType.Text,
                         capitalization = KeyboardCapitalization.Words,
                         imeAction = ImeAction.Next,
@@ -712,79 +791,34 @@ fun CustomTextFieldsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Custom City and State Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        // Custom City Field
-                        CustomTextField(
-                            label = "City",
-                            value = cityInput.value,
-                            onValueChange = { value ->
-                                viewModel.updateCityInput(value)
-                                sdk.callbacks.onCityChange(value, true)
-                            },
-                            isRequired = true,
-                            isError = cityInput.isNotValid && !cityInput.isPristine,
-                            errorMessage = if (!cityInput.isPristine) getCityErrorMessage(cityInput.error) else null,
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Next,
-                            modifier = Modifier.weight(1f),
-                        )
-
-                        // Custom State Field - demonstrates input transformation
-                        CustomTextField(
-                            label = "State",
-                            value = stateInput.value,
-                            onValueChange = { value ->
-                                val upperValue = value.uppercase()
-                                viewModel.updateStateInput(upperValue)
-                                sdk.callbacks.onStateChange(upperValue, true)
-                            },
-                            isRequired = true,
-                            isError = stateInput.isNotValid && !stateInput.isPristine,
-                            errorMessage = if (!stateInput.isPristine) {
-                                getStateErrorMessage(
-                                stateInput.error,
-                            )
-                            } else {
-                                null
-                            },
-                            keyboardType = KeyboardType.Text,
-                            capitalization = KeyboardCapitalization.Characters,
-                            imeAction = ImeAction.Next,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Custom Zip Code Field - demonstrates input filtering
+                    // Custom City Field — merchant-owned validation; sync value via SDK callback
                     CustomTextField(
-                        label = "Zip Code",
-                        value = zipCodeInput.value,
+                        label = "City",
+                        value = cityInput.value,
                         onValueChange = { value ->
-                            val filteredValue = value
-                                .filter {
-                                (it in 'A'..'Z') || (it in 'a'..'z') || it.isDigit() ||
-                                it == ' ' ||
-                                it == '-'
-                            }.uppercase()
-                            viewModel.updateZipCodeInput(filteredValue)
-                            sdk.callbacks.onZipCodeChange(filteredValue, true)
+                            viewModel.updateCityInput(value)
+                            sdk.callbacks.onCityChange(value, true)
                         },
                         isRequired = true,
-                        isError = zipCodeInput.isNotValid && !zipCodeInput.isPristine,
-                        errorMessage = when {
-                            !zipCodeInput.isPristine -> getZipCodeErrorMessage(zipCodeInput.error)
-                            else -> null
-                        },
+                        isError = cityInput.isNotValid && !cityInput.isPristine,
+                        errorMessage = if (!cityInput.isPristine) getCityErrorMessage(cityInput.error) else null,
                         keyboardType = KeyboardType.Text,
-                        capitalization = KeyboardCapitalization.Characters,
-                        imeAction = ImeAction.Done,
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Next,
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    key(fieldSelection, useCustomTheme, selectedThemePreset, fieldOverrideTarget, fieldStyleOverrides) {
+                        DemoOptionalHostedFieldsSection(
+                            sdk = sdk,
+                            selection = fieldSelection,
+                            fieldConfigFor = { formFieldType ->
+                                viewModel.resolveSplFieldConfig(formFieldType, isDarkMode)
+                            },
+                            onValidationChange = viewModel::onHostedFieldValidation,
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -814,37 +848,33 @@ fun CustomTextFieldsScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // isFormValid = core fields valid && required optional hosted fields valid.
                     val isButtonDisabled = isInitializing || isProcessing || !isFormValid
 
-                    // Custom Payment Button - uses sdk.processPayment() instead of CheckoutButton
+                    // Custom Payment Button submit flow:
+                    // 1. areAllFieldsValid — built-in hosted-field gate (+ sticky custom blur latch)
+                    // 2. createCreditCard — custom validators run internally; ValidationFailed
+                    //    is returned when any registered validator rejects the field value
                     Button(
                         onClick = {
-                            if (!isFormValid) {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Fix invalid fields before paying.")
-                                }
+                            viewModel.beginCheckoutAttempt()
+                            val additionalFields = viewModel.buildSubmitAdditionalFields()
+                            if (
+                                // Demo-only: FA10 invalid manifest must reach SDK submit validator.
+                                !viewModel.skipPreSubmitFieldValidityGateForDemo() &&
+                                !sdk.areAllFieldsValid(formFields)
+                            ) {
                                 return@Button
                             }
-                            if (!sdk.areAllFieldsValid(formFields)) {
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        "Please fix card field errors before proceeding",
-                                    )
-                                }
-                                return@Button
-                            }
+
                             coroutineScope.launch {
-                                val additionalFields = mapOf(
-                                    AdditionalField.FULL_NAME to nameInput.value,
-                                    AdditionalField.ADDRESS_LINE_1 to addressInput.value,
-                                    AdditionalField.CITY to cityInput.value,
-                                    AdditionalField.STATE to stateInput.value,
-                                    AdditionalField.ZIP_CODE to zipCodeInput.value,
-                                )
+                                if (!viewModel.ensureFreshAuthBeforePayment()) {
+                                    return@launch
+                                }
 
                                 val result = sdk.createCreditCard(
-                                    formFields = formFields, // Only SPL fields are validated by SDK
-                                    additionalFields = additionalFields, // Pass other fields directly
+                                    formFields = formFields,
+                                    additionalFields = additionalFields,
                                     metadata = mapOf(
                                         "example_type" to "custom_text_fields_new_pattern",
                                         "order_id" to "ORD-${System.currentTimeMillis()}",
@@ -855,7 +885,7 @@ fun CustomTextFieldsScreen(
                                 )
                                 when (result) {
                                     is PaymentProcessingResult.Processing -> {
-                                        Log.d(TAG, "Payment processing started")
+                                        viewModel.onPaymentSubmitResult(result)
                                         viewModel.resetFormFields()
                                         viewModel.onCheckoutFieldsClearedBySdk()
                                         viewModel.setProcessing(true)
@@ -863,7 +893,9 @@ fun CustomTextFieldsScreen(
                                     }
 
                                     is PaymentProcessingResult.ValidationFailed -> {
-                                        Log.d(TAG, "Validation failed for fields: ${result.invalidFields}")
+                                        viewModel.resolveValidationFailedSnackbar(result)?.let { message ->
+                                            viewModel.snackbarHostState.showSnackbar(message)
+                                        }
                                     }
 
                                     is PaymentProcessingResult.Rejected,

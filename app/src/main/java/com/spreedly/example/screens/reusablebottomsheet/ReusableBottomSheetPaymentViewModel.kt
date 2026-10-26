@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.spreedly.app.BuildConfig
 import com.spreedly.example.AuthService
 import com.spreedly.example.repository.PaymentMethodRepository
+import com.spreedly.example.utils.DemoSdkAuthSession
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
 import com.spreedly.example.ui.theme.SampleThemePreset
@@ -20,6 +21,7 @@ import com.spreedly.sdk.models.PaymentMethodResponse
 import com.spreedly.sdk.models.Transaction
 import com.spreedly.sdk.ui.PaymentResult
 import com.spreedly.sdk.ui.PaymentSheetConfig
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,80 +63,64 @@ class ReusableBottomSheetPaymentViewModel(private val context: Context) : ViewMo
 
     // Payment method repository for retention
     private val paymentMethodRepository = PaymentMethodRepository(context)
-    private val sdkSessionManager = SdkSessionManager(AuthService())
+    private val authSession = DemoSdkAuthSession(SdkSessionManager(AuthService()))
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
     val themeConfiguration = ThemeConfigurationController()
     val useCustomTheme = themeConfiguration.useCustomTheme
     val selectedThemePreset = themeConfiguration.selectedPreset
 
-    // Track if we've initialized the SDK at least once
-    private var hasInitialized = false
+    private var paymentResultJob: Job? = null
 
-    /**
-     * Initialize SDK with fresh auth parameters for each payment.
-     */
-    private suspend fun initializeSDKForPayment(): Boolean {
-        _isInitializing.value = true
-        return try {
-            sdkSessionManager.initializeSdk(sdk, context.applicationContext, BuildConfig.ENVIRONMENT_KEY)
-                .fold(
-                    onSuccess = {
-                        if (!hasInitialized) {
-                            observePaymentResults()
-                            hasInitialized = true
-                            Log.d(TAG, "ReusableBottomSheetViewModel: First SDK initialization with observers")
-                        } else {
-                            Log.d(TAG, "ReusableBottomSheetViewModel: SDK reinitialized with fresh auth")
-                        }
-                        _isInitializing.value = false
-                        true
-                    },
-                    onFailure = { e ->
-                        Log.d(TAG, "ReusableBottomSheetViewModel: Failed to fetch auth parameters: ${e::class.simpleName}")
-                        snackbarHostState.showSnackbar("Failed to fetch auth parameters")
-                        _isInitializing.value = false
-                        false
-                    },
-                )
-        } catch (e: Exception) {
-            Log.d(TAG, "ReusableBottomSheetViewModel: SDK initialization failed: ${e::class.simpleName}")
-            snackbarHostState.showSnackbar("SDK initialization failed")
-            _isInitializing.value = false
-            false
-        }
-    }
-
-    private fun observePaymentResults() {
-        paymentResultHandler.observeResults(
+    private suspend fun ensureFreshAuthBeforePayment(): Boolean =
+        authSession.ensureFreshAuth(
             sdk = sdk,
-            scope = viewModelScope,
-            onCompleted = { result ->
-                _isProcessing.value = false
-                _token.value = result.token
-                _paymentCount.value = _paymentCount.value + 1
-                val currentHistory = _tokenHistory.value.toMutableList()
-                currentHistory.add(result.token)
-                _tokenHistory.value = currentHistory
-                if (result.shouldRetain) {
-                    handlePaymentRetention(result)
-                } else if (!isConfigurationChanging) {
-                    snackbarHostState.showSnackbar("Payment #${_paymentCount.value} completed successfully!")
-                }
-            },
-            onFailed = { result ->
-                Log.d(TAG, "ReusableBottomSheetViewModel: Payment failed: ${result.errorType}")
-                _isProcessing.value = false
+            context = context,
+            environmentKey = BuildConfig.ENVIRONMENT_KEY,
+            isInitializing = _isInitializing,
+            registerObserversIfNeeded = ::observePaymentResults,
+            onFailure = {
                 if (!isConfigurationChanging) {
-                    snackbarHostState.showSnackbar("Payment failed: ${result.message}")
-                }
-            },
-            onCanceled = {
-                Log.d(TAG, "ReusableBottomSheetViewModel: Payment canceled")
-                if (!isConfigurationChanging) {
-                    snackbarHostState.showSnackbar("Payment canceled")
+                    snackbarHostState.showSnackbar("Failed to fetch auth parameters")
                 }
             },
         )
+
+    private fun observePaymentResults() {
+        paymentResultJob?.cancel()
+        paymentResultJob =
+            paymentResultHandler.observeResults(
+                sdk = sdk,
+                scope = viewModelScope,
+                onCompleted = { result ->
+                    _isProcessing.value = false
+                    _token.value = result.token
+                    _paymentCount.value = _paymentCount.value + 1
+                    authSession.onTerminalPaymentResult(result)
+                    val currentHistory = _tokenHistory.value.toMutableList()
+                    currentHistory.add(result.token)
+                    _tokenHistory.value = currentHistory
+                    if (result.shouldRetain) {
+                        handlePaymentRetention(result)
+                    } else if (!isConfigurationChanging) {
+                        snackbarHostState.showSnackbar("Payment #${_paymentCount.value} completed successfully!")
+                    }
+                },
+                onFailed = { result ->
+                    Log.d(TAG, "ReusableBottomSheetViewModel: Payment failed: ${result.errorType}")
+                    _isProcessing.value = false
+                    authSession.onTerminalPaymentResult(result)
+                    if (!isConfigurationChanging) {
+                        snackbarHostState.showSnackbar("Payment failed: ${result.message}")
+                    }
+                },
+                onCanceled = {
+                    Log.d(TAG, "ReusableBottomSheetViewModel: Payment canceled")
+                    _isProcessing.value = false
+                    if (!isConfigurationChanging) {
+                        snackbarHostState.showSnackbar("Payment canceled")
+                    }
+                },
+            )
     }
 
     fun setProcessing(processing: Boolean) {
@@ -162,7 +148,7 @@ class ReusableBottomSheetPaymentViewModel(private val context: Context) : ViewMo
                 setProcessing(true)
 
                 // Initialize SDK with fresh auth parameters
-                val initSuccess = initializeSDKForPayment()
+                val initSuccess = ensureFreshAuthBeforePayment()
 
                 if (initSuccess && sdk.isInitialized) {
                     Log.d(TAG, "ReusableBottomSheetViewModel: SDK initialized successfully")

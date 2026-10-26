@@ -661,6 +661,9 @@ fun RecachingShowcaseScreen(
                                 coroutineScope.launch {
                                     try {
                                         Log.d(TAG, "Starting payment processing...")
+                                        if (!viewModel.ensureFreshAuthBeforePayment()) {
+                                            return@launch
+                                        }
 
                                         // Create additional fields map
                                         val additionalFields =
@@ -690,6 +693,7 @@ fun RecachingShowcaseScreen(
                                         when (result) {
                                             is PaymentProcessingResult.Processing -> {
                                                 Log.d(TAG, "Payment processing started")
+                                                viewModel.onPaymentSubmitResult(result)
                                                 fullName = ""
                                                 email = ""
                                                 nameError = null

@@ -70,13 +70,6 @@ fun CustomisedCheckoutScreen(
 
     var shouldRetainPaymentMethod by remember { mutableStateOf(false) }
 
-    // Initialize SDK only once when screen is first created
-    LaunchedEffect(Unit) {
-        if (!sdk.isInitialized) {
-            viewModel.initializeSDKIfNeeded()
-        }
-    }
-
     // Custom configuration for this screen - Note: These colors are intentionally themed
     // to demonstrate customization capabilities. In production, use MaterialTheme colors
     val config = CustomFieldsConfig(
@@ -293,6 +286,7 @@ fun CustomisedCheckoutScreen(
                                 config = config,
                                 value = sdk.paymentState.value.nameOnCard.value,
                                 onChange = { sdk.callbacks.onNameOnCardChange(it, true) },
+                                writeCatalogueValueToSdk = false,
                             )
                         }
                     }
@@ -325,6 +319,7 @@ fun CustomisedCheckoutScreen(
                                     config = config,
                                     value = sdk.paymentState.value.city.value,
                                     onChange = { sdk.callbacks.onCityChange(it, true) },
+                                    writeCatalogueValueToSdk = false,
                                 )
                             }
 
@@ -337,6 +332,7 @@ fun CustomisedCheckoutScreen(
                                     config = config,
                                     value = sdk.paymentState.value.state.value,
                                     onChange = { sdk.callbacks.onStateChange(it) },
+                                    writeCatalogueValueToSdk = false,
                                 )
                             }
 
@@ -347,6 +343,7 @@ fun CustomisedCheckoutScreen(
                                 value = sdk.paymentState.value.zipCode.value,
                                 onChange = { sdk.callbacks.onZipCodeChange(it, true) },
                                 imeAction = ImeAction.Done,
+                                writeCatalogueValueToSdk = false,
                             )
                         }
                     }
@@ -442,6 +439,7 @@ fun CustomisedCheckoutScreen(
                                         "amount" to "99.99",
                                     ),
                                 retainOnSuccess = shouldRetainPaymentMethod,
+                                beforeSubmit = { viewModel.ensureFreshAuthBeforePayment() },
                             )
                         }
                     }

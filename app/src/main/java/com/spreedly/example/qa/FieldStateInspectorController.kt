@@ -46,7 +46,7 @@ class FieldStateInspectorController(
                 _uiState.update { it.copy(cvvSnapshot = state) }
                 appendEventLog(state)
             }
-            else -> Unit
+            else -> appendEventLog(state)
         }
     }
 

@@ -40,11 +40,11 @@ import androidx.compose.material3.Text
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spreedly.example.MerchantMaskToggleBar
+import com.spreedly.example.optionalfields.DemoOptionalFieldConfigCard
 import com.spreedly.example.qa.ExpressDisplayConfigBar
 import com.spreedly.sdk.ui.CardNumberFormat
 import com.spreedly.sdk.ui.PaymentSheetDisplayConfig
@@ -62,9 +63,7 @@ import com.spreedly.example.ui.components.ThemeConfigurationCard
 import com.spreedly.example.ui.components.ThemeConfigurationStyle
 import com.spreedly.example.viewmodel.bottomSheetPaymentViewModel
 import com.spreedly.paymentsheet.SpreedlyBottomSheet
-import com.spreedly.sdk.ui.ConfigurableFormField
 import com.spreedly.sdk.ui.NameFieldDisplayMode
-import com.spreedly.sdk.ui.OptionalFieldType
 import com.spreedly.sdk.ui.PaymentSheetConfig
 import com.spreedly.sdk.ui.YearFormat
 import com.spreedly.validation.ValidationParameter
@@ -78,11 +77,12 @@ fun BottomSheetPaymentScreen(
     val hostedCardDisplayState by sdk.hostedCardDisplayState
     val snackbarHostState = viewModel.snackbarHostState
 
-    val isInitializing by viewModel.isInitializing.collectAsState()
-    val token by viewModel.token.collectAsState()
-    val isProcessing by viewModel.isProcessing.collectAsState()
-    val useCustomTheme by viewModel.useCustomTheme.collectAsState()
-    val selectedThemePreset by viewModel.selectedThemePreset.collectAsState()
+    val isInitializing by viewModel.isInitializing.collectAsStateWithLifecycle()
+    val token by viewModel.token.collectAsStateWithLifecycle()
+    val isProcessing by viewModel.isProcessing.collectAsStateWithLifecycle()
+    val useCustomTheme by viewModel.useCustomTheme.collectAsStateWithLifecycle()
+    val selectedThemePreset by viewModel.selectedThemePreset.collectAsStateWithLifecycle()
+    val fieldSelection by viewModel.fieldSelection.collectAsStateWithLifecycle()
     val isDarkMode = isSystemInDarkTheme()
     val paymentSheetConfig =
         remember(useCustomTheme, selectedThemePreset, isDarkMode) {
@@ -203,6 +203,17 @@ fun BottomSheetPaymentScreen(
                 onPresetSelected = viewModel::setThemePreset,
                 onResetTheme = viewModel::resetThemeConfiguration,
                 style = ThemeConfigurationStyle.BUTTON,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp),
+            )
+
+            DemoOptionalFieldConfigCard(
+                selection = fieldSelection,
+                onSelectionChange = viewModel::updateFieldSelection,
+                availableCoreNameFields = viewModel.availableCoreNameFields,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -532,22 +543,20 @@ fun BottomSheetPaymentScreen(
             }
         }
 
-        val customFields = listOf(
-            ConfigurableFormField(type = OptionalFieldType.ADDRESS_LINE_1, isRequired = true),
-            ConfigurableFormField(type = OptionalFieldType.CITY, isRequired = false),
-            ConfigurableFormField(type = OptionalFieldType.STATE, isRequired = true),
-        )
+        val customFields = fieldSelection.toConfigurableFormFields()
 
-        SpreedlyBottomSheet(
-            sdk = sdk,
-            config = paymentSheetConfig,
-            displayConfig = sheetDisplayConfig,
-            nameFieldDisplayMode = NameFieldDisplayMode.SEPARATE_FIELDS,
-            allowBlankName = allowBlankName,
-            allowBlankDate = allowBlankDate,
-            allowExpiredDate = allowExpiredDate,
-            yearFormat = YearFormat.MM_YY,
-            additionalFields = customFields,
-        )
+        key(fieldSelection.enabledFields, fieldSelection.requiredFields) {
+            SpreedlyBottomSheet(
+                sdk = sdk,
+                config = paymentSheetConfig,
+                displayConfig = sheetDisplayConfig,
+                nameFieldDisplayMode = NameFieldDisplayMode.SEPARATE_FIELDS,
+                allowBlankName = allowBlankName,
+                allowBlankDate = allowBlankDate,
+                allowExpiredDate = allowExpiredDate,
+                yearFormat = YearFormat.MM_YY,
+                additionalFields = customFields,
+            )
+        }
     }
 }

@@ -10,6 +10,7 @@ import com.spreedly.example.AuthService
 import com.spreedly.example.models.SavedPaymentMethod
 import com.spreedly.example.repository.PaymentMethodRepository
 import com.spreedly.example.qa.FieldStateInspectorController
+import com.spreedly.example.utils.DemoSdkAuthSession
 import com.spreedly.example.utils.PaymentResultHandler
 import com.spreedly.example.utils.SdkSessionManager
 import com.spreedly.example.ui.theme.SampleThemePreset
@@ -28,6 +29,7 @@ import com.spreedly.sdk.models.RecacheConfig
 import com.spreedly.sdk.models.SavedCardInfo
 import com.spreedly.sdk.models.ScreenPresentationMode
 import com.spreedly.sdk.models.paymentMethodUpdatedAt
+import com.spreedly.sdk.ui.FailureReason
 import com.spreedly.sdk.ui.PaymentProcessingResult
 import com.spreedly.validation.EmailValidator
 import com.spreedly.validation.ValidationParameter
@@ -60,7 +62,7 @@ class BasicCheckoutViewModel(
 
     private var lastPaymentCompletedTime = 0L
 
-    private val sdkSessionManager = SdkSessionManager(AuthService())
+    private val authSession = DemoSdkAuthSession(SdkSessionManager(AuthService()))
     private val paymentMethodRepository = PaymentMethodRepository(context)
     private val paymentResultHandler = PaymentResultHandler(paymentMethodRepository)
     private var paymentResultJob: Job? = null
@@ -211,6 +213,9 @@ class BasicCheckoutViewModel(
     }
 
     suspend fun submitCheckout(params: SubmitCheckoutParams): PaymentProcessingResult {
+        if (!ensureFreshAuthBeforePayment()) {
+            return PaymentProcessingResult.Failed(FailureReason.UNEXPECTED_ERROR)
+        }
         val additionalFields =
             mapOf(
                 AdditionalField.FULL_NAME to params.fullName.split(" ").firstOrNull().orEmpty(),
@@ -227,8 +232,20 @@ class BasicCheckoutViewModel(
                 ),
             retainOnSuccess = params.shouldRetainPaymentMethod,
             eligibleForCardUpdater = params.eligibleForCardUpdater?.takeIf { it },
-        )
+        ).also { result ->
+            authSession.onPaymentSubmitResult(result)
+        }
     }
+
+    suspend fun ensureFreshAuthBeforePayment(): Boolean =
+        authSession.ensureFreshAuth(
+            sdk = sdk,
+            context = context,
+            environmentKey = BuildConfig.ENVIRONMENT_KEY,
+            isInitializing = _isInitializing,
+            registerObserversIfNeeded = ::observePaymentResults,
+            onFailure = { snackbarHostState.showSnackbar("SDK initialization failed") },
+        )
 
     fun launchSubmitCheckout(params: SubmitCheckoutParams) {
         viewModelScope.launch {
@@ -257,23 +274,12 @@ class BasicCheckoutViewModel(
     private fun initializeSDK() {
         initJob =
             viewModelScope.launch {
-                _isInitializing.value = true
-                sdkSessionManager.initializeSdk(sdk, context.applicationContext, BuildConfig.ENVIRONMENT_KEY)
-                    .fold(
-                        onSuccess = {
-                            Log.d(TAG, "BasicCheckoutViewModel: SDK initialized successfully")
-                            observePaymentResults()
-                        },
-                        onFailure = { e ->
-                            Log.d(TAG, "BasicCheckoutViewModel: SDK initialization failed: ${e::class.simpleName}")
-                            snackbarHostState.showSnackbar("SDK initialization failed")
-                        },
-                    )
-                _isInitializing.value = false
+                ensureFreshAuthBeforePayment()
             }
     }
 
     private fun observePaymentResults() {
+        paymentResultJob?.cancel()
         paymentResultJob =
             paymentResultHandler.observeResults(
                 sdk = sdk,
@@ -283,6 +289,7 @@ class BasicCheckoutViewModel(
                     _isProcessing.value = false
                     _paymentToken.value = result.token
                     lastPaymentCompletedTime = System.currentTimeMillis()
+                    authSession.onTerminalPaymentResult(result)
                     paymentResultHandler.retainIfNeeded(result).fold(
                         onSuccess = { retained ->
                             if (retained) {
@@ -301,6 +308,7 @@ class BasicCheckoutViewModel(
                     Log.d(TAG, "BasicCheckoutViewModel: Payment failed: ${result.errorType}")
                     _isProcessing.value = false
                     _paymentToken.value = ""
+                    authSession.onTerminalPaymentResult(result)
                     if (!result.isClientSideFormValidationFailure()) {
                         snackbarHostState.showSnackbar("Error creating payment method")
                     }
@@ -340,7 +348,11 @@ class BasicCheckoutViewModel(
         initJob?.cancel()
         paymentResultJob?.cancel()
         clearToken()
-        initializeSDK()
+        authSession.prepareForManualReinitialize()
+        initJob =
+            viewModelScope.launch {
+                ensureFreshAuthBeforePayment()
+            }
     }
 
     fun startPaymentPolling() {
