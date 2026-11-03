@@ -13,7 +13,16 @@ gpr.key=YOUR_GITHUB_TOKEN
 ```
 
 3. Add your Spreedly environment key and other API keys to `apikeys.properties` (see `apikeys.properties.example`)
-4. Open the project in Android Studio and sync Gradle
+4. In [app.spreedly.com](https://app.spreedly.com), open **Environment settings** for the environment you use with this app. Under **Security → Enhanced Security**, check **Enable secure tokenization**, then **Save changes**. Repeat for each environment (for example, staging and production). See [Enable secure tokenization (required)](https://github.com/spreedly/checkout-android-sdk/blob/main/docs/guides/getting-started.md#enable-secure-tokenization-required) in the SDK docs.
+5. Open the project in Android Studio and sync Gradle
+
+### Enable secure tokenization (required)
+
+Follow the canonical steps in the SDK docs (dashboard paths, payment-method submission, staging
+checks, and platform behavior):
+[Enable secure tokenization (required)](https://github.com/spreedly/checkout-android-sdk/blob/main/docs/guides/getting-started.md#enable-secure-tokenization-required).
+Enable the setting for each Spreedly environment that matches your `apikeys.properties`
+`environmentKey` before you tokenize from this sample.
 
 ## Dependencies
 
@@ -29,6 +38,7 @@ implementation("com.spreedly:checkout-threeds:1.5.0")
 ## SDK Documentation
 
 - [SDK Repository](https://github.com/spreedly/checkout-android-sdk)
+- [Getting Started — secure tokenization](https://github.com/spreedly/checkout-android-sdk/blob/main/docs/guides/getting-started.md#enable-secure-tokenization-required)
 - [API Documentation](https://github.com/spreedly/checkout-android-sdk)
 
 ## Support
