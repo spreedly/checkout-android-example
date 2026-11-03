@@ -18,23 +18,11 @@ gpr.key=YOUR_GITHUB_TOKEN
 
 ### Enable secure tokenization (required)
 
-Generating backend auth details is not enough on its own. Until **Enable secure tokenization** is
-turned on for your Spreedly environment, Create payment method calls from the SDK are not
-authenticated.
-
-1. Sign in to [app.spreedly.com](https://app.spreedly.com) and open **Environment settings** for
-   the environment matching your `apikeys.properties` `environmentKey`.
-2. Under **Security → Enhanced Security**, check **Enable secure tokenization**, then click
-   **Save changes**.
-3. Under **Payment method submission**, we recommend **iFrame or Spreedly Express** so payment
-   methods cannot be created through the direct API.
-
-This setting is per environment. Once enabled, every Create payment method call requires
-authentication: SDK requests need valid signed auth details, and direct API calls need HTTP basic
-auth. Confirm the sample app (via your backend) sends valid auth details before you save the setting.
-Non-secure tokenization will be deprecated on October 31,
-2026, with end of life on December 31, 2028. See
-[Securing iFrame or Checkout SDK](https://developer.spreedly.com/docs/securing-iframe).
+Follow the canonical steps in the SDK docs (dashboard paths, payment-method submission, staging
+checks, and platform behavior):
+[Enable secure tokenization (required)](https://github.com/spreedly/checkout-android-sdk/blob/main/docs/guides/getting-started.md#enable-secure-tokenization-required).
+Enable the setting for each Spreedly environment that matches your `apikeys.properties`
+`environmentKey` before you tokenize from this sample.
 
 ## Dependencies
 
